@@ -2,6 +2,7 @@ export interface Transaction {
     id: number;
     tipo: 'gasto' | 'ingreso';
     cantidad: number;
+    saldoPostTransaccion: number;
     descripcion: string;
     fecha: Date;
     hucha_id: number;

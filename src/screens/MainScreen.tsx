@@ -1,12 +1,11 @@
 // src/screens/MainScreen.tsx
-import React, { FC, useContext, useEffect, useState, useCallback } from 'react';
+import React, { FC, useContext, useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   ListRenderItemInfo,
-  TouchableOpacity,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import AddButton from '../components/AddButton';
@@ -24,10 +23,18 @@ const MainScreen: FC = () => {
     loadTransactions();
   }, [db]);
 
+  const currentMoney = transactions.length > 0 ? transactions[0].saldoPostTransaccion : 0;
+  const moneyColor = currentMoney < 0 ? Colors.alert : Colors.primary;
+
+
   const loadTransactions = async (): Promise<void> => {
     try {
       if (db) {
-        const results = await asyncExecuteSQL(db, `SELECT * FROM Movimientos;`);
+        const results = await asyncExecuteSQL(db, `SELECT *
+          FROM Movimientos
+          ORDER BY fecha DESC, id DESC
+          LIMIT 15;
+        `);
         if (results) {
           const rows = results.rows;
           const data: Transaction[] = [];
@@ -44,24 +51,6 @@ const MainScreen: FC = () => {
       console.error('Error cargando las transacciones:', error);
     }
   };
-
-  // Calcula el dinero total: suma ingresos y resta gastos.
-  const totalMoney: number = transactions.reduce((acc, t) => {
-    if (t.tipo === 'ingreso') {
-      return acc + t.cantidad;
-    } else if (t.tipo === 'gasto') {
-      return acc - t.cantidad;
-    }
-    return acc;
-  }, 0);
-
-  // Ordena las transacciones de forma descendente por fecha.
-  const sortedTransactions = [...transactions].sort(
-    (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
-  );
-
-  // Limitamos los últimos movimientos a, por ejemplo, 5 para la vista
-  const latestTransactions = sortedTransactions.slice(0, 5);
 
   const renderTransaction = ({ item }: ListRenderItemInfo<Transaction>) => {
     // Definimos un color según si es ingreso o gasto
@@ -96,15 +85,22 @@ const MainScreen: FC = () => {
 
     return (
       <View style={styles.transactionItem}>
-        <Text style={styles.transactionDescription}>
-          {item.descripcion || (item.tipo === 'ingreso' ? 'Ingreso' : 'Gasto')}
-        </Text>
-        <Text style={[styles.transactionAmount, { color: amountColor }]}>
-          {item.tipo === 'ingreso' ? '+' : '-'} {item.cantidad.toFixed(2)} €
-        </Text>
-        <Text style={styles.transactionDate}>
-          {fechaString}
-        </Text>
+        <View style={styles.transactionCantidadYConcepto}>
+          <Text style={[styles.transactionAmount, { color: amountColor }]}>
+            {item.tipo === 'ingreso' ? '+' : '-'}{item.cantidad.toFixed(2)}€
+          </Text>
+          <Text style={FontStyles.normalTextStyle}>
+            {item.descripcion || (item.tipo === 'ingreso' ? 'Ingreso' : 'Gasto')}
+          </Text>
+        </View>
+        <View style={styles.transactionSaldoYFecha}>
+          <Text style={FontStyles.normalTextStyle}>
+            {item.saldoPostTransaccion}€
+          </Text>
+          <Text style={styles.transactionDate}>
+            {fechaString}
+          </Text>
+        </View>
       </View>
     );
   };
@@ -115,16 +111,16 @@ const MainScreen: FC = () => {
     <View style={styles.container}>
       {/* Sección superior (Dinero total) */}
       <View style={styles.headerCard}>
-        <Text style={styles.currencySymbol}>€</Text>
-        <Text style={styles.totalMoney}>{totalMoney.toFixed(2)}</Text>
+        <Text style={[styles.currencySymbol, { color: moneyColor }]}>€</Text>
+        <Text style={[styles.totalMoney, { color: moneyColor }]}>{currentMoney}</Text>
       </View>
 
       {/* Últimos movimientos */}
       <View style={SectionStyles.cardSection}>
         <Text style={SectionStyles.sectionTitle}>Últimos Movimientos</Text>
-        {latestTransactions.length > 0 ? (
+        {transactions.length > 0 ? (
           <FlatList
-            data={latestTransactions}
+            data={transactions}
             keyExtractor={(item) => item.id.toString()}
             renderItem={renderTransaction}
           />
@@ -158,12 +154,12 @@ const styles = StyleSheet.create({
   },
   currencySymbol: {
     ...FontStyles.h1Style,
-    color: Colors.text,
+    color: Colors.primary,
     marginRight: 8,
   },
   totalMoney: {
     ...FontStyles.h1Style,
-    color: Colors.text,
+    color: Colors.primary,
   },
 
 
@@ -174,21 +170,27 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   transactionItem: {
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.secondary,
     paddingVertical: 8,
+    flexDirection: "row",
+    justifyContent: "space-between"
   },
-  transactionDescription: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: Colors.text,
+  transactionCantidadYConcepto:{
+    flexDirection: "row",
+    maxWidth: "40%",
+    gap: 10
+  },
+  transactionSaldoYFecha:{
+    flexDirection: "column",
+    maxWidth: "40%",
+    justifyContent: "flex-start",
+    alignItems: "flex-end"
   },
   transactionAmount: {
-    fontSize: 16,
+    ...FontStyles.normalTextStyle,
     marginVertical: 2,
   },
   transactionDate: {
-    fontSize: 14,
+    ...FontStyles.normalTextStyle,
     color: Colors.secondary,
   },
 });

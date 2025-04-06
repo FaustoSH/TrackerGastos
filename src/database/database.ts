@@ -33,49 +33,60 @@ export const initDatabase = async (): Promise<SQLiteDatabase> => {
           CREATE TABLE IF NOT EXISTS Huchas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
+            saldo REAL NOT NULL,
             color TEXT NOT NULL,
             objetivo REAL,
             fecha_limite DATE
           );
         `);
-    
+
         tx.executeSql(`
           CREATE TABLE IF NOT EXISTS Movimientos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             tipo TEXT NOT NULL CHECK (tipo IN ('ingreso', 'gasto')),
             cantidad REAL NOT NULL CHECK (cantidad > 0),
+            saldoPostTransaccion REAL NOT NULL,
             descripcion TEXT,
             fecha DATE NOT NULL,
             hucha_id INTEGER,
             FOREIGN KEY (hucha_id) REFERENCES Huchas(id)
           );
         `);
-    
+
         tx.executeSql(`
           CREATE TRIGGER IF NOT EXISTS check_hucha_balance_before_insert
           BEFORE INSERT ON Movimientos
           WHEN NEW.tipo = 'gasto' AND NEW.hucha_id IS NOT NULL
           BEGIN
             SELECT CASE
-              WHEN (
-                (SELECT IFNULL(SUM(cantidad), 0) FROM Movimientos 
-                 WHERE hucha_id = NEW.hucha_id AND tipo = 'ingreso')
-                -
-                (SELECT IFNULL(SUM(cantidad), 0) FROM Movimientos 
-                 WHERE hucha_id = NEW.hucha_id AND tipo = 'gasto')
-                - NEW.cantidad
-              ) < 0
+              WHEN ((SELECT saldo FROM Huchas WHERE id = NEW.hucha_id) - NEW.cantidad) < 0
               THEN RAISE(ABORT, 'No hay suficiente dinero en la hucha')
             END;
           END;
+
+        `);
+
+        tx.executeSql(`
+          CREATE TRIGGER IF NOT EXISTS update_hucha_balance_after_insert
+          AFTER INSERT ON Movimientos
+          WHEN NEW.hucha_id IS NOT NULL
+          BEGIN
+            -- Actualiza el saldo de la hucha según el tipo de movimiento
+            UPDATE Huchas
+            SET saldo = CASE NEW.tipo
+                          WHEN 'ingreso' THEN saldo + NEW.cantidad
+                          WHEN 'gasto' THEN saldo - NEW.cantidad
+                        END
+            WHERE id = NEW.hucha_id;
+          END;
         `);
       },
-      error => {
-        reject(error);
-      },
-      () => {
-        resolve();
-      });
+        error => {
+          reject(error);
+        },
+        () => {
+          resolve();
+        });
     });
 
     return db;
@@ -101,4 +112,33 @@ export const asyncExecuteSQL = async (
       }
     );
   });
+};
+
+
+export const wipeDatabase = async (db: SQLiteDatabase): Promise<void> => {
+  try {
+    await new Promise<void>((resolve, reject) => {
+      db.transaction(
+        (tx) => {
+          // Elimina todas las tablas existentes.
+          tx.executeSql(`DROP TABLE IF EXISTS Movimientos;`);
+          tx.executeSql(`DROP TABLE IF EXISTS Huchas;`);
+          // Si tienes triggers, también puedes eliminarlos:
+          tx.executeSql(`DROP TRIGGER IF EXISTS check_hucha_balance_before_insert;`);
+          tx.executeSql(`DROP TRIGGER IF EXISTS update_hucha_balance_after_insert;`);
+        },
+        (error) => {
+          console.error('Error en la transacción wipeDatabase:', error);
+          reject(error);
+        },
+        () => {
+          console.log('Base de datos borrada exitosamente.');
+          resolve();
+        }
+      );
+    });
+  } catch (error) {
+    console.error('Error al borrar la base de datos:', error);
+    throw error;
+  }
 };

@@ -1,19 +1,25 @@
 // components/AddButton.tsx
-import React, { useState, FC } from 'react';
+import React, { useState, FC, useContext } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
     TouchableWithoutFeedback,
+    Alert,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
+import { wipeDatabase } from '../database/database';
+import { AppContext } from '../context/ContextProvider';
+import RNRestart from 'react-native-restart';
+
 
 
 const AddButton: FC = () => {
+    const {db, setLoading} = useContext(AppContext)
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const [menuVisible, setMenuVisible] = useState<boolean>(false);
 
@@ -36,22 +42,32 @@ const AddButton: FC = () => {
                             <View style={styles.menuContainer}>
                                 <TouchableOpacity
                                     style={styles.menuOption}
-                                    onPress={() => navigation.navigate("Transaction", {mode: 'gasto'})}
+                                    onPress={() => navigation.navigate("Transaction", { mode: 'gasto' })}
                                 >
                                     <Text style={styles.menuOptionText}>Añadir gasto</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={styles.menuOption}
-                                    onPress={() => navigation.navigate("Transaction", {mode: 'ingreso'})}
+                                    onPress={() => navigation.navigate("Transaction", { mode: 'ingreso' })}
                                 >
                                     <Text style={styles.menuOptionText}>Añadir ingreso</Text>
                                 </TouchableOpacity>
-                                {/* <TouchableOpacity
+
+                                <TouchableOpacity
                                     style={styles.menuOption}
-                                    onPress={() => handleNavigation('NewPiggyBank')}
+                                    onPress={async () => {
+                                        setLoading(true);
+                                        if(db){
+                                            await wipeDatabase(db);
+                                            RNRestart.Restart();
+                                        }else{
+                                            setLoading(false);
+                                            Alert.alert("La base de datos no está inicializada")
+                                        }
+                                    }}
                                 >
-                                    <Text style={styles.menuOptionText}>Crear hucha</Text>
-                                </TouchableOpacity> */}
+                                    <Text style={styles.menuOptionText}>Borrar base de datos</Text>
+                                </TouchableOpacity>
                             </View>
                         </TouchableWithoutFeedback>
                     </View>
