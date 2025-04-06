@@ -1,19 +1,20 @@
 // src/screens/TransactionScreen.tsx
-import React, { FC, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  StyleSheet, 
-  TouchableOpacity, 
+import React, { FC, useContext, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
   Switch,
   Alert
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../constants/colors';
 import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
+import { asyncExecuteSQL } from '../database/database';
+import { AppContext } from '../context/ContextProvider';
 
 type TransactionScreenRouteProp = RouteProp<RootStackParamList, 'Transaction'>;
 type TransactionScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Transaction'>;
@@ -25,6 +26,7 @@ interface TransactionScreenProps {
 
 const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) => {
   const { mode } = route.params;
+  const { db } = useContext(AppContext);
   const [amount, setAmount] = useState<string>('');
   const [concepto, setConcepto] = useState<string>('');
   const [usePiggyBank, setUsePiggyBank] = useState<boolean>(false);
@@ -55,34 +57,24 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
   };
 
   const handleSave = async (): Promise<void> => {
-    const numericValue = parseFloat(amount);
-    if (!amount || isNaN(numericValue) || numericValue <= 0) {
-      setAmountError('Por favor, ingresa una cantidad válida mayor que 0');
-      return;
-    }
-
-    // Crea la transacción incluyendo la fecha actual
-    const transaction = {
-      mode, // 'nuevoGasto' o 'nuevoIngreso'
-      amount: numericValue,
-      concepto,
-      usePiggyBank,
-      date: new Date().toISOString(),
-    };
-
     try {
-      // Obtiene el listado de transacciones almacenadas (si existen)
-      const storedTransactions = await AsyncStorage.getItem('@transactions');
-      let transactions = storedTransactions ? JSON.parse(storedTransactions) : [];
-      transactions.push(transaction);
-      await AsyncStorage.setItem('@transactions', JSON.stringify(transactions));
-      
-      // Reinicia el formulario y navega a la pantalla principal
-      setAmount('');
-      setConcepto('');
-      setUsePiggyBank(false);
-      setAmountError('');
-      
+      if (!db) {
+        throw new Error("Base de datos no inicializada")
+      }
+
+      const numericAmount = parseFloat(amount);
+      if (!amount || isNaN(numericAmount) || numericAmount <= 0) {
+        setAmountError('Por favor, ingresa una cantidad válida mayor que 0');
+        return;
+      }
+
+      const newTransaction = await asyncExecuteSQL(
+        db,
+        `INSERT INTO Movimientos (tipo, cantidad, descripcion, fecha, hucha_id)
+         VALUES (?, ?, ?, ?, ?);`,
+        [mode, numericAmount, concepto, new Date(), null]
+      );
+     
       navigation.navigate('Main');
     } catch (error) {
       console.error('Error guardando la transacción:', error);
@@ -93,7 +85,7 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
   return (
     <View style={styles.container}>
       <Text style={styles.title}>
-        {mode === 'nuevoGasto' ? 'Añadir Gasto' : 'Añadir Ingreso'}
+        {mode === 'gasto' ? 'Añadir Gasto' : 'Añadir Ingreso'}
       </Text>
 
       <View style={styles.formGroup}>
@@ -122,7 +114,7 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
 
       <View style={styles.formGroupRow}>
         <Text style={styles.label}>
-          {mode === 'nuevoGasto' ? 'Extraer de hucha' : 'Asignar a hucha'}
+          {mode === 'gasto' ? 'Extraer de hucha' : 'Asignar a hucha'}
         </Text>
         <Switch value={usePiggyBank} onValueChange={setUsePiggyBank} />
       </View>

@@ -8,7 +8,8 @@ import ContextProvider from './src/context/ContextProvider';
 
 export type RootStackParamList = {
   Main: undefined;
-  Transaction: { mode: 'nuevoGasto' | 'nuevoIngreso' };
+  Transaction: { mode: 'gasto' | 'ingreso' };
+  // NewPiggyBank: undefined
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();

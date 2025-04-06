@@ -8,20 +8,14 @@ import {
     TouchableWithoutFeedback,
 } from 'react-native';
 import { Colors } from '../constants/colors';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../App';
 
-interface AddButtonProps {
-    onOptionSelect?: (option: string) => void;
-}
 
-const AddButton: FC<AddButtonProps> = ({ onOptionSelect }) => {
+const AddButton: FC = () => {
+    const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const [menuVisible, setMenuVisible] = useState<boolean>(false);
-
-    const handleOptionPress = (option: string): void => {
-        if (onOptionSelect) {
-            onOptionSelect(option);
-        }
-        setMenuVisible(false);
-    };
 
     return (
         <>
@@ -42,22 +36,22 @@ const AddButton: FC<AddButtonProps> = ({ onOptionSelect }) => {
                             <View style={styles.menuContainer}>
                                 <TouchableOpacity
                                     style={styles.menuOption}
-                                    onPress={() => handleOptionPress('nuevoGasto')}
+                                    onPress={() => navigation.navigate("Transaction", {mode: 'gasto'})}
                                 >
                                     <Text style={styles.menuOptionText}>Añadir gasto</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={styles.menuOption}
-                                    onPress={() => handleOptionPress('nuevoIngreso')}
+                                    onPress={() => navigation.navigate("Transaction", {mode: 'ingreso'})}
                                 >
                                     <Text style={styles.menuOptionText}>Añadir ingreso</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity
+                                {/* <TouchableOpacity
                                     style={styles.menuOption}
-                                    onPress={() => handleOptionPress('nuevaHucha')}
+                                    onPress={() => handleNavigation('NewPiggyBank')}
                                 >
                                     <Text style={styles.menuOptionText}>Crear hucha</Text>
-                                </TouchableOpacity>
+                                </TouchableOpacity> */}
                             </View>
                         </TouchableWithoutFeedback>
                     </View>
@@ -71,8 +65,8 @@ const styles = StyleSheet.create({
     // Botón "+"
     addButton: {
         position: 'absolute',
-        right: 20,
-        bottom: 20,
+        right: 30,
+        bottom: 30,
         backgroundColor: Colors.primary,
         width: 60,
         height: 60,
@@ -100,8 +94,8 @@ const styles = StyleSheet.create({
     // Menú con el mismo color verde que el botón, posicionado para que toque el botón
     menuContainer: {
         position: 'absolute',
-        right: 50,
-        bottom: 50,
+        right: 80,
+        bottom: 80,
         width: 150,
         backgroundColor: Colors.primary,
         borderTopLeftRadius: 8,

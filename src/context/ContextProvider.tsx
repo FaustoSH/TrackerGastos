@@ -6,13 +6,15 @@ import { SQLiteDatabase } from 'react-native-sqlite-storage';
 export interface AppContextProps {
   db: SQLiteDatabase | null;
   loading: boolean
+  setLoading: (arg0: boolean) => void
   // Puedes agregar más propiedades o métodos que necesites en el futuro.
 }
 
 // Valor por defecto
 export const AppContext = createContext<AppContextProps>({
   db: null,
-  loading: true
+  loading: true,
+  setLoading: ()=>{}
 });
 
 interface ContextProviderProps {
@@ -28,7 +30,6 @@ const ContextProvider: React.FC<ContextProviderProps> = ({ children }) => {
     initDatabase()
       .then(database => {
         setDb(database);
-        setLoading(false);
         console.log('Base de datos abierta en el contexto global');
       })
       .catch(error => {
@@ -37,7 +38,7 @@ const ContextProvider: React.FC<ContextProviderProps> = ({ children }) => {
   }, []);
 
   return (
-    <AppContext.Provider value={{ db, loading }}>
+    <AppContext.Provider value={{ db, loading, setLoading }}>
       {children}
     </AppContext.Provider>
   );
