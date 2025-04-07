@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Colors } from '../constants/colors';
+import Slider from '@react-native-community/slider';
 import { AppContext } from '../context/ContextProvider';
 import { asyncExecuteSQL } from '../database/database';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -47,6 +48,18 @@ const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({ navigation }) => {
         }
     };
 
+    // Añadir después de los imports
+    const hslToHex = (h: number): string => {
+        const s = 1;
+        const l = 0.5;
+        const a = s * Math.min(l, 1 - l);
+        const f = (n: number) => {
+            const k = (n + h / 30) % 12;
+            const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+            return Math.round(255 * color).toString(16).padStart(2, '0');
+        };
+        return `#${f(0)}${f(8)}${f(4)}`;
+    };
 
     /**
      * Maneja el guardado de la nueva hucha.
@@ -85,7 +98,7 @@ const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({ navigation }) => {
                 [
                     nombre.trim(),
                     0, // Saldo inicial en 0
-                    "#"+color,
+                    "#" + color,
                     objectiveToggle ? objetivoValue : null,
                     objectiveToggle ? fechaLimiteString : null,
                 ]
@@ -113,14 +126,31 @@ const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({ navigation }) => {
             </View>
 
             <View style={styles.formGroup}>
-                <Text style={styles.label}>Color de etiqueta (Hexadecimal)</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="#58C477"
-                    value={color}
-                    onChangeText={(text) => handleTextChange(text, setColor, 20)}
-                    placeholderTextColor={Colors.secondary}
-                />
+                <Text style={styles.label}>Color de etiqueta</Text>
+                <View style={styles.colorPickerContainer}>
+                    <View style={styles.colorInputContainer}>
+                        <TextInput
+                            style={styles.colorInput}
+                            value={"#"+color}
+                            onChangeText={(text) => handleTextChange(text, setColor, 6)}
+                            placeholder={Colors.primary}
+                            placeholderTextColor={Colors.secondary}
+                        />
+                        <View style={[styles.colorPreview, { backgroundColor: `#${color}` }]} />
+                    </View>
+                    <View style={styles.sliderContainer}>
+                        <Slider
+                            style={styles.slider}
+                            minimumValue={0}
+                            maximumValue={360}
+                            value={140}
+                            onValueChange={(value) => {
+                                const hexColor = hslToHex(value);
+                                setColor(hexColor.substring(1)); // Removemos el # inicial
+                            }}
+                        />
+                    </View>
+                </View>
             </View>
 
             <View style={styles.formGroupRow}>
@@ -225,7 +255,39 @@ const styles = StyleSheet.create({
     saveButtonText: {
         color: '#fff',
         fontSize: 16,
-    }
+    },
+    colorPickerContainer: {
+        width: '100%',
+    },
+    colorInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    colorInput: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: Colors.secondary,
+        borderRadius: 4,
+        padding: 10,
+        color: Colors.text,
+        marginRight: 10,
+    },
+    colorPreview: {
+        width: 40,
+        height: 40,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: Colors.secondary,
+    },
+    sliderContainer: {
+        height: 40,
+        width: '100%',
+    },
+    slider: {
+        width: '100%',
+        height: 40,
+    },
 });
 
 export default NewPiggyBankScreen;
