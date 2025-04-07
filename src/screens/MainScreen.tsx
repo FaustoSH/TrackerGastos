@@ -16,22 +16,22 @@ import { FontStyles, SectionStyles } from '../constants/generalStyles';
 import { loadHuchas, loadTransactions } from '../utils/Utils';
 
 const MainScreen: FC = () => {
-  const { db} = useContext(AppContext);
+  const { db } = useContext(AppContext);
   const [loading, setLoading] = useState<boolean>(true)
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [huchas, setHuchas] = useState<Hucha[]>([]);
 
   useEffect(() => {
     loadData()
-    .catch(error=>{
-      Alert.alert("Error cargando datos iniciales: "+error)
-    })
+      .catch(error => {
+        Alert.alert("Error cargando datos iniciales: " + error)
+      })
   }, [db]);
 
-  const loadData = async ()=>{
+  const loadData = async () => {
     try {
       if (db) {
-        const promises=[
+        const promises = [
           loadTransactions(db, setTransactions, 15),
           loadHuchas(db, setHuchas),
         ]
@@ -119,53 +119,58 @@ const MainScreen: FC = () => {
   return loading ? (
     <LoadingScreen fullWindow={true} />
   ) : (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* Sección superior (Dinero total) */}
-      <View style={styles.headerCard}>
-        <Text style={[styles.currencySymbol, { color: moneyColor }]}>€</Text>
-        <Text style={[styles.totalMoney, { color: moneyColor }]}>{currentMoney.toFixed(2)}</Text>
-      </View>
+    <View style={styles.mainContainer}>
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* Sección superior (Dinero total) */}
+        <View style={styles.headerCard}>
+          <Text style={[styles.currencySymbol, { color: moneyColor }]}>€</Text>
+          <Text style={[styles.totalMoney, { color: moneyColor }]}>{currentMoney.toFixed(2)}</Text>
+        </View>
 
-      {/* Sección de Huchas */}
-      <View style={styles.huchaCard}>
-        <Text style={SectionStyles.sectionTitle}>Huchas</Text>
-        {huchas.length > 0 ? (
-          <ScrollView horizontal={true} contentContainerStyle={styles.huchaScroll}>
-            {huchas.map(item => renderHucha(item))}
-          </ScrollView>
-        ) : (
-          <Text style={styles.noDataText}>No hay huchas</Text>
-        )}
-      </View>
+        {/* Sección de Huchas */}
+        <View style={styles.huchaCard}>
+          <Text style={SectionStyles.sectionTitle}>Huchas</Text>
+          {huchas.length > 0 ? (
+            <ScrollView horizontal={true} contentContainerStyle={styles.huchaScroll}>
+              {huchas.map(item => renderHucha(item))}
+            </ScrollView>
+          ) : (
+            <Text style={styles.noDataText}>No hay huchas</Text>
+          )}
+        </View>
 
-      {/* Últimos movimientos */}
-      <View style={SectionStyles.cardSection}>
-        <Text style={SectionStyles.sectionTitle}>Últimos Movimientos</Text>
-        {transactions.length > 0 ? (
-          <>
-            {
-              transactions.map(item => renderTransaction(item))
-            }
-          </>
-        ) : (
-          <Text style={styles.noDataText}>No hay movimientos</Text>
-        )}
-      </View>
-
+        {/* Últimos movimientos */}
+        <View style={SectionStyles.cardSection}>
+          <Text style={SectionStyles.sectionTitle}>Últimos Movimientos</Text>
+          {transactions.length > 0 ? (
+            <>
+              {
+                transactions.map(item => renderTransaction(item))
+              }
+            </>
+          ) : (
+            <Text style={styles.noDataText}>No hay movimientos</Text>
+          )}
+        </View>
+      </ScrollView>
       {/* Botón "+" en posición absoluta */}
       <AddButton />
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   // Contenedor principal
-  container: {
+  mainContainer: {
+    position: 'relative',
     flex: 1,
+    backgroundColor: Colors.background,
+  },
+  container: {
+    flexGrow: 1,
     backgroundColor: Colors.background,
     paddingHorizontal: 16,
     paddingTop: 16,
-    position: 'relative',
   },
   // Tarjeta superior para el dinero total
   headerCard: {
@@ -237,6 +242,10 @@ const styles = StyleSheet.create({
   },
 
   //Estilos sección movimientos
+  transactionSection: {
+    ...SectionStyles.cardSection,
+    flex: 1,
+  },
   transactionItem: {
     paddingVertical: 8,
     flexDirection: 'row',
