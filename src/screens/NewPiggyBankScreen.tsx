@@ -1,0 +1,231 @@
+// src/screens/NewPiggyBankScreen.tsx
+import React, { FC, useState, useContext } from 'react';
+import {
+    View,
+    Text,
+    TextInput,
+    StyleSheet,
+    TouchableOpacity,
+    Switch,
+    Alert,
+    Platform,
+    Modal,
+} from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { Colors } from '../constants/colors';
+import { AppContext } from '../context/ContextProvider';
+import { asyncExecuteSQL } from '../database/database';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../App';
+import { handleNumericChange, handleTextChange } from '../utils/Utils';
+
+
+interface NewPiggyBankScreenProps {
+    navigation: NativeStackNavigationProp<RootStackParamList, 'NewPiggyBank'>;
+}
+
+const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({ navigation }) => {
+    const { db } = useContext(AppContext);
+    const [nombre, setNombre] = useState<string>('');
+    const [color, setColor] = useState<string>(Colors.primary); // Color por defecto
+    const [showColorPicker, setShowColorPicker] = useState<boolean>(false);
+    const [objectiveToggle, setObjectiveToggle] = useState<boolean>(false);
+    const [objetivo, setObjetivo] = useState<string>('');
+    const [fechaLimite, setFechaLimite] = useState<Date>(new Date());
+    const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+
+
+    /**
+     * Maneja la selección de fecha desde el DateTimePicker.
+     */
+    const onChangeDate = (event: DateTimePickerEvent, selectedDate?: Date): void => {
+        if (Platform.OS === 'android') {
+            setShowDatePicker(false);
+        }
+        if (selectedDate) {
+            setFechaLimite(selectedDate);
+        }
+    };
+
+
+    /**
+     * Maneja el guardado de la nueva hucha.
+     */
+    const handleSave = async (): Promise<void> => {
+        if (!nombre.trim()) {
+            Alert.alert('Error', 'El nombre de la hucha es obligatorio.');
+            return;
+        }
+
+        let objetivoValue: number | null = null;
+        let fechaLimiteString: string | null = null;
+        if (objectiveToggle) {
+            objetivoValue = parseFloat(objetivo);
+            if (isNaN(objetivoValue) || objetivoValue <= 0) {
+                Alert.alert('Error', 'El objetivo debe ser un número mayor que 0.');
+                return;
+            }
+            // Formatear fecha a YYYY-MM-DD
+            const year = fechaLimite.getFullYear();
+            const month = (fechaLimite.getMonth() + 1).toString().padStart(2, '0');
+            const day = fechaLimite.getDate().toString().padStart(2, '0');
+            fechaLimiteString = `${year}-${month}-${day}`;
+        }
+
+        if (!db) {
+            Alert.alert('Error', 'La base de datos no está inicializada.');
+            return;
+        }
+
+        try {
+            await asyncExecuteSQL(
+                db,
+                `INSERT INTO Huchas (nombre, saldo, color, objetivo, fecha_limite)
+                VALUES (?, ?, ?, ?, ?);`,
+                [
+                    nombre.trim(),
+                    0, // Saldo inicial en 0
+                    "#"+color,
+                    objectiveToggle ? objetivoValue : null,
+                    objectiveToggle ? fechaLimiteString : null,
+                ]
+            );
+            navigation.navigate('Main')
+        } catch (err) {
+            console.error('Error al crear hucha:', err);
+            Alert.alert('Error', 'No se pudo crear la hucha');
+        }
+    };
+
+    return (
+        <View style={styles.container}>
+            <Text style={styles.title}>Crear Hucha</Text>
+
+            <View style={styles.formGroup}>
+                <Text style={styles.label}>Nombre de la hucha</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Nombre"
+                    value={nombre}
+                    onChangeText={(text) => handleTextChange(text, setNombre, 50)}
+                    placeholderTextColor={Colors.secondary}
+                />
+            </View>
+
+            <View style={styles.formGroup}>
+                <Text style={styles.label}>Color de etiqueta (Hexadecimal)</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="#58C477"
+                    value={color}
+                    onChangeText={(text) => handleTextChange(text, setColor, 20)}
+                    placeholderTextColor={Colors.secondary}
+                />
+            </View>
+
+            <View style={styles.formGroupRow}>
+                <Text style={styles.label}>Establecer objetivo</Text>
+                <Switch value={objectiveToggle} onValueChange={setObjectiveToggle} />
+            </View>
+
+            {objectiveToggle && (
+                <>
+                    <View style={styles.formGroup}>
+                        <Text style={styles.label}>Dinero objetivo</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Objetivo"
+                            value={objetivo}
+                            onChangeText={(text) => handleNumericChange(text, setObjetivo)}
+                            keyboardType="numeric"
+                            placeholderTextColor={Colors.secondary}
+                        />
+                    </View>
+
+                    <View style={styles.formGroup}>
+                        <Text style={styles.label}>Fecha límite</Text>
+                        <TouchableOpacity
+                            style={styles.dateInput}
+                            onPress={() => setShowDatePicker(true)}
+                        >
+                            <Text style={styles.dateText}>
+                                {fechaLimite.toLocaleDateString()}
+                            </Text>
+                        </TouchableOpacity>
+                        {showDatePicker && (
+                            <DateTimePicker
+                                value={fechaLimite}
+                                mode="date"
+                                display="default"
+                                onChange={onChangeDate}
+                            />
+                        )}
+                    </View>
+                </>
+            )}
+            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+                <Text style={styles.saveButtonText}>Guardar</Text>
+            </TouchableOpacity>
+        </View>
+    );
+};
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: Colors.background,
+        padding: 16,
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: '700',
+        textAlign: 'center',
+        marginBottom: 20,
+        color: Colors.text,
+    },
+    formGroup: {
+        marginBottom: 15,
+    },
+    formGroupRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    label: {
+        fontSize: 16,
+        color: Colors.text,
+        marginBottom: 5,
+    },
+    input: {
+        borderWidth: 1,
+        borderColor: Colors.secondary,
+        borderRadius: 4,
+        padding: 10,
+        color: Colors.text,
+    },
+    dateInput: {
+        borderWidth: 1,
+        borderColor: Colors.secondary,
+        borderRadius: 4,
+        padding: 10,
+        justifyContent: 'center',
+    },
+    dateText: {
+        fontSize: 16,
+        color: Colors.text,
+    },
+    saveButton: {
+        backgroundColor: Colors.primary,
+        paddingVertical: 12,
+        borderRadius: 4,
+        alignItems: 'center',
+        marginTop: 20,
+    },
+    saveButtonText: {
+        color: '#fff',
+        fontSize: 16,
+    }
+});
+
+export default NewPiggyBankScreen;

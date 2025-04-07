@@ -19,7 +19,7 @@ import RNRestart from 'react-native-restart';
 
 
 const AddButton: FC = () => {
-    const {db, setLoading} = useContext(AppContext)
+    const {db} = useContext(AppContext)
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const [menuVisible, setMenuVisible] = useState<boolean>(false);
 
@@ -52,16 +52,20 @@ const AddButton: FC = () => {
                                 >
                                     <Text style={styles.menuOptionText}>Añadir ingreso</Text>
                                 </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.menuOption}
+                                    onPress={() => navigation.navigate("NewPiggyBank")}
+                                >
+                                    <Text style={styles.menuOptionText}>Nueva hucha</Text>
+                                </TouchableOpacity>
 
                                 <TouchableOpacity
                                     style={styles.menuOption}
                                     onPress={async () => {
-                                        setLoading(true);
                                         if(db){
                                             await wipeDatabase(db);
                                             RNRestart.Restart();
                                         }else{
-                                            setLoading(false);
                                             Alert.alert("La base de datos no está inicializada")
                                         }
                                     }}

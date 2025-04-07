@@ -5,16 +5,12 @@ import { SQLiteDatabase } from 'react-native-sqlite-storage';
 
 export interface AppContextProps {
   db: SQLiteDatabase | null;
-  loading: boolean
-  setLoading: (arg0: boolean) => void
   // Puedes agregar más propiedades o métodos que necesites en el futuro.
 }
 
 // Valor por defecto
 export const AppContext = createContext<AppContextProps>({
-  db: null,
-  loading: true,
-  setLoading: ()=>{}
+  db: null
 });
 
 interface ContextProviderProps {
@@ -23,8 +19,6 @@ interface ContextProviderProps {
 
 const ContextProvider: React.FC<ContextProviderProps> = ({ children }) => {
   const [db, setDb] = useState<SQLiteDatabase | null>(null);
-  const [loading, setLoading] = useState<boolean>(true)
-
 
   useEffect(() => {
     initDatabase()
@@ -38,7 +32,7 @@ const ContextProvider: React.FC<ContextProviderProps> = ({ children }) => {
   }, []);
 
   return (
-    <AppContext.Provider value={{ db, loading, setLoading }}>
+    <AppContext.Provider value={{ db}}>
       {children}
     </AppContext.Provider>
   );

@@ -4,69 +4,54 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
-  ListRenderItemInfo,
+  ScrollView,
+  Alert,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import AddButton from '../components/AddButton';
-import { asyncExecuteSQL } from '../database/database';
 import { AppContext } from '../context/ContextProvider';
 import LoadingScreen from '../components/LoadingScreen';
-import { Transaction } from '../constants/typesAndInterfaces';
+import { Transaction, Hucha } from '../constants/typesAndInterfaces';
 import { FontStyles, SectionStyles } from '../constants/generalStyles';
+import { loadHuchas, loadTransactions } from '../utils/Utils';
 
 const MainScreen: FC = () => {
-  const { db, loading, setLoading } = useContext(AppContext);
+  const { db} = useContext(AppContext);
+  const [loading, setLoading] = useState<boolean>(true)
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [huchas, setHuchas] = useState<Hucha[]>([]);
 
   useEffect(() => {
-    loadTransactions();
+    loadData()
+    .catch(error=>{
+      Alert.alert("Error cargando datos iniciales: "+error)
+    })
   }, [db]);
 
-  const currentMoney = transactions.length > 0 ? transactions[0].saldoPostTransaccion : 0;
-  const moneyColor = currentMoney < 0 ? Colors.alert : Colors.primary;
-
-
-  const loadTransactions = async (): Promise<void> => {
+  const loadData = async ()=>{
     try {
       if (db) {
-        const results = await asyncExecuteSQL(db, `SELECT *
-          FROM Movimientos
-          ORDER BY fecha DESC, id DESC
-          LIMIT 15;
-        `);
-        if (results) {
-          const rows = results.rows;
-          const data: Transaction[] = [];
-          for (let i = 0; i < rows.length; i++) {
-            data.push(rows.item(i));
-          }
-          setTransactions(data);
-        }
-
+        const promises=[
+          loadTransactions(db, setTransactions, 15),
+          loadHuchas(db, setHuchas),
+        ]
+        await Promise.all(promises)
         setLoading(false);
-
       }
     } catch (error) {
-      console.error('Error cargando las transacciones:', error);
+      throw error;
     }
-  };
+  }
 
-  const renderTransaction = ({ item }: ListRenderItemInfo<Transaction>) => {
-    // Definimos un color según si es ingreso o gasto
-    const amountColor = item.tipo === 'ingreso' ? Colors.primary : Colors.alert; // rojo para gasto
+  // Render de un movimiento (transacción)
+  const renderTransaction = (item: Transaction) => {
+    const amountColor = item.tipo === 'ingreso' ? Colors.primary : Colors.alert;
 
     const itemDate = new Date(item.fecha);
-
-    // Obtenemos la fecha de hoy, sin horas
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
-    // Obtenemos la fecha de ayer
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
-
-    // También obtenemos la fecha del item sin horas para comparar
     const itemDateWithoutHours = new Date(itemDate);
     itemDateWithoutHours.setHours(0, 0, 0, 0);
 
@@ -76,7 +61,6 @@ const MainScreen: FC = () => {
     } else if (itemDateWithoutHours.getTime() === yesterday.getTime()) {
       fechaString = "Ayer";
     } else {
-      // Formato dd/mm/aaaa
       const day = itemDate.getDate().toString().padStart(2, '0');
       const month = (itemDate.getMonth() + 1).toString().padStart(2, '0');
       const year = itemDate.getFullYear();
@@ -84,7 +68,7 @@ const MainScreen: FC = () => {
     }
 
     return (
-      <View style={styles.transactionItem}>
+      <View style={styles.transactionItem} key={item.id.toString()}>
         <View style={styles.transactionCantidadYConcepto}>
           <Text style={[styles.transactionAmount, { color: amountColor }]}>
             {item.tipo === 'ingreso' ? '+' : '-'}{item.cantidad.toFixed(2)}€
@@ -105,33 +89,72 @@ const MainScreen: FC = () => {
     );
   };
 
+  // Render de cada hucha
+  const renderHucha = (item: Hucha) => {
+    // Calcula progreso si hay objetivo
+    const progress = item.objetivo ? Math.min(item.saldo / item.objetivo, 1) : 0;
+    const progressWidth = `${(progress * 100).toFixed(0)}%`;
+
+    return (
+      <View style={[styles.huchaItem, { borderColor: item.color }]} key={item.id.toString()}>
+        <View style={styles.huchaHeader}>
+          <View style={[styles.colorTag, { backgroundColor: item.color }]} />
+          <Text style={styles.huchaName}>{item.nombre}</Text>
+        </View>
+        <Text style={FontStyles.normalTextStyle}>
+          {item.saldo.toFixed(2)}€{item.objetivo ? ' / ' + item.objetivo.toFixed(2) + '€' : ''}
+        </Text>
+        {item.objetivo && (
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: progressWidth as any, backgroundColor: item.color }]} />
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const currentMoney = transactions.length > 0 ? transactions[0].saldoPostTransaccion : 0;
+  const moneyColor = currentMoney < 0 ? Colors.alert : Colors.primary;
+
   return loading ? (
     <LoadingScreen fullWindow={true} />
   ) : (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
       {/* Sección superior (Dinero total) */}
       <View style={styles.headerCard}>
         <Text style={[styles.currencySymbol, { color: moneyColor }]}>€</Text>
-        <Text style={[styles.totalMoney, { color: moneyColor }]}>{currentMoney}</Text>
+        <Text style={[styles.totalMoney, { color: moneyColor }]}>{currentMoney.toFixed(2)}</Text>
+      </View>
+
+      {/* Sección de Huchas */}
+      <View style={styles.huchaCard}>
+        <Text style={SectionStyles.sectionTitle}>Huchas</Text>
+        {huchas.length > 0 ? (
+          <ScrollView horizontal={true} contentContainerStyle={styles.huchaScroll}>
+            {huchas.map(item => renderHucha(item))}
+          </ScrollView>
+        ) : (
+          <Text style={styles.noDataText}>No hay huchas</Text>
+        )}
       </View>
 
       {/* Últimos movimientos */}
       <View style={SectionStyles.cardSection}>
         <Text style={SectionStyles.sectionTitle}>Últimos Movimientos</Text>
         {transactions.length > 0 ? (
-          <FlatList
-            data={transactions}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={renderTransaction}
-          />
+          <>
+            {
+              transactions.map(item => renderTransaction(item))
+            }
+          </>
         ) : (
-          <Text style={styles.noTransactionsText}>No hay movimientos</Text>
+          <Text style={styles.noDataText}>No hay movimientos</Text>
         )}
       </View>
 
       {/* Botón "+" en posición absoluta */}
       <AddButton />
-    </View>
+    </ScrollView>
   );
 };
 
@@ -162,28 +185,73 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
 
-
-  // Últimos movimientos
-  noTransactionsText: {
+  //Estilo general para textos no data
+  noDataText: {
     textAlign: 'center',
     color: Colors.text,
     marginTop: 10,
   },
+
+  //Estilos sección huchas
+  huchaCard: {
+    ...SectionStyles.cardSection,
+    maxHeight: 240
+  },
+  huchaScroll: {
+    flexDirection: "row",
+    gap: 8
+  },
+  huchaItem: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+    maxWidth: 320
+  },
+  huchaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8
+  },
+  colorTag: {
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+  },
+  huchaName: {
+    ...FontStyles.normalTextStyle,
+    flexWrap: 'wrap',
+    flexShrink: 1
+  },
+  progressBar: {
+    width: '100%',
+    height: 6,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+
+  //Estilos sección movimientos
   transactionItem: {
     paddingVertical: 8,
-    flexDirection: "row",
-    justifyContent: "space-between"
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  transactionCantidadYConcepto:{
-    flexDirection: "row",
-    maxWidth: "40%",
-    gap: 10
+  transactionCantidadYConcepto: {
+    flexDirection: 'row',
+    maxWidth: '40%',
+    gap: 10,
   },
-  transactionSaldoYFecha:{
-    flexDirection: "column",
-    maxWidth: "40%",
-    justifyContent: "flex-start",
-    alignItems: "flex-end"
+  transactionSaldoYFecha: {
+    flexDirection: 'column',
+    maxWidth: '40%',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
   },
   transactionAmount: {
     ...FontStyles.normalTextStyle,

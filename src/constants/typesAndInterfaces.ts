@@ -11,6 +11,7 @@ export interface Transaction {
 export interface Hucha {
     id: number;
     nombre: string;
+    saldo: number;
     color: string;
     objetivo: number;
     fecha_limite: Date;

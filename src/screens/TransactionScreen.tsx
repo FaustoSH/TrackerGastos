@@ -1,5 +1,5 @@
 // src/screens/TransactionScreen.tsx
-import React, { FC, useContext, useState } from 'react';
+import React, { FC, useContext, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
 import { asyncExecuteSQL } from '../database/database';
 import { AppContext } from '../context/ContextProvider';
-import { Transaction } from '../constants/typesAndInterfaces';
+import { Hucha, Transaction } from '../constants/typesAndInterfaces';
+import { handleNumericChange, handleTextChange, loadHuchas } from '../utils/Utils';
+import LoadingScreen from '../components/LoadingScreen';
+import { Picker } from '@react-native-picker/picker';
 
 type TransactionScreenRouteProp = RouteProp<RootStackParamList, 'Transaction'>;
 type TransactionScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Transaction'>;
@@ -28,65 +31,34 @@ interface TransactionScreenProps {
 const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) => {
   const { mode } = route.params;
   const { db } = useContext(AppContext);
+  const [loading, setLoading] = useState<boolean>(true)
   const [amount, setAmount] = useState<string>('');
   const [concepto, setConcepto] = useState<string>('');
   const [usePiggyBank, setUsePiggyBank] = useState<boolean>(false);
-  const [amountError, setAmountError] = useState<string>('');
+  const [huchas, setHuchas] = useState<Hucha[]>([]);
+  const [selectedHucha, setSelectedHucha] = useState<number | null>(null);
 
-  const handleAmountChange = (text: string): void => {
-    // Elimina caracteres que no sean dígitos o punto decimal
-    let cleaned = text.replace(/[^0-9.]/g, '');
 
-    // Permitir sólo un punto decimal: se conserva el primero y se eliminan los siguientes
-    const dotIndex = cleaned.indexOf('.');
-    if (dotIndex !== -1) {
-      // Conserva el primer punto y elimina cualquier otro en el resto de la cadena
-      cleaned =
-        cleaned.substring(0, dotIndex + 1) +
-        cleaned.substring(dotIndex + 1).replace(/\./g, '');
+  useEffect(() => {
+    loadData()
+      .catch(error => {
+        Alert.alert("Error cargando datos iniciales: " + error)
+      })
+  }, [db]);
+
+  const loadData = async () => {
+    try {
+      if (db) {
+        const promises = [
+          loadHuchas(db, setHuchas),
+        ]
+        await Promise.all(promises)
+        setLoading(false);
+      }
+    } catch (error) {
+      throw error;
     }
-
-    // Limitar la parte decimal a dos dígitos
-    if (dotIndex !== -1) {
-      const integerPart = cleaned.substring(0, dotIndex);
-      // Obtiene sólo los dos primeros dígitos después del punto
-      const decimalPart = cleaned.substring(dotIndex + 1, dotIndex + 3);
-      cleaned = integerPart + '.' + decimalPart;
-    }
-
-    // Permitir borrar el campo (también si el usuario escribe solo el punto)
-    if (cleaned === '' || cleaned === '.') {
-      setAmount('');
-      setAmountError('');
-      return;
-    }
-
-    const numericValue = parseFloat(cleaned);
-
-    if (isNaN(numericValue) || numericValue <= 0) {
-      setAmount(cleaned);
-      setAmountError('La cantidad debe ser mayor que 0');
-    } else {
-      setAmount(cleaned);
-      setAmountError('');
-    }
-  };
-
-  const handleConceptoChange = (text: string): void => {
-    // Elimina cualquier carácter que no sea letra, número o espacio.
-    // Si necesitas soportar letras acentuadas o caracteres internacionales,
-    // puedes usar la expresión regular Unicode: /[^\p{L}\p{N} ]/gu
-    let cleaned = text.replace(/[^a-zA-Z0-9 ]/g, '');
-    
-    // Trunca a 50 caracteres si es necesario
-    if (cleaned.length > 50) {
-      cleaned = cleaned.substring(0, 50);
-    }
-    
-    setConcepto(cleaned);
-  };
-  
-
+  }
 
   const handleSave = async (): Promise<void> => {
     try {
@@ -94,11 +66,11 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
         throw new Error("Base de datos no inicializada")
       }
 
-      const numericAmount = parseFloat(amount);
-      if (!amount || isNaN(numericAmount) || numericAmount <= 0) {
-        setAmountError('Por favor, ingresa una cantidad válida mayor que 0');
-        return;
+      if(usePiggyBank && selectedHucha === null){
+        throw new Error ("Debe seleccionar una hucha")
       }
+
+      const numericAmount = parseFloat(amount);
 
       const saldoActualQuery = await asyncExecuteSQL(
         db,
@@ -113,17 +85,18 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
         db,
         `INSERT INTO Movimientos (tipo, cantidad, saldoPostTransaccion, descripcion, fecha, hucha_id)
          VALUES (?, ?, ?, ?, ?, ?);`,
-        [mode, numericAmount, nuevoSaldoPostTransaccion, concepto, new Date(), null]
+        [mode, numericAmount, nuevoSaldoPostTransaccion, concepto, new Date(), selectedHucha]
       );
 
       navigation.navigate('Main');
-    } catch (error) {
-      console.error('Error guardando la transacción:', error);
-      Alert.alert('Error al guardar el movimiento');
+    } catch (error: any) {
+      Alert.alert('Error al guardar el movimiento: ', error.message);
     }
   };
 
-  return (
+  return loading ? (
+    <LoadingScreen fullWindow={true} />
+  ) : (
     <View style={styles.container}>
       <Text style={styles.title}>
         {mode === 'gasto' ? 'Añadir Gasto' : 'Añadir Ingreso'}
@@ -135,11 +108,10 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
           style={styles.input}
           keyboardType="numeric"
           value={amount}
-          onChangeText={handleAmountChange}
+          onChangeText={(text) => handleNumericChange(text, setAmount)}
           placeholder="0.00"
           placeholderTextColor={Colors.secondary}
         />
-        {amountError !== '' && <Text style={styles.errorText}>{amountError}</Text>}
       </View>
 
       <View style={styles.formGroup}>
@@ -147,7 +119,7 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
         <TextInput
           style={styles.input}
           value={concepto}
-          onChangeText={handleConceptoChange}
+          onChangeText={(text) => handleTextChange(text, setConcepto, 50)}
           placeholder="Concepto (opcional)"
           placeholderTextColor={Colors.secondary}
         />
@@ -163,8 +135,19 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
       {usePiggyBank && (
         <View style={styles.formGroup}>
           <Text style={styles.label}>Selecciona Hucha</Text>
-          {/* Aquí se puede implementar un dropdown o picker para seleccionar la hucha */}
-          <Text style={styles.pickerPlaceholder}>[Dropdown de huchas]</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={selectedHucha}
+              onValueChange={(value) => setSelectedHucha(value)}
+              style={styles.picker}
+              itemStyle={styles.pickerItem}
+            >
+              <Picker.Item label="Selecciona una hucha" value={null} />
+              {huchas.map((h) => (
+                <Picker.Item key={h.id.toString()} label={h.nombre} value={h.id} />
+              ))}
+            </Picker>
+          </View>
         </View>
       )}
 
@@ -172,7 +155,7 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
         <Text style={styles.saveButtonText}>Guardar</Text>
       </TouchableOpacity>
     </View>
-  );
+  )
 };
 
 const styles = StyleSheet.create({
@@ -219,6 +202,18 @@ const styles = StyleSheet.create({
     borderColor: Colors.secondary,
     borderRadius: 4,
     color: Colors.text,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: Colors.secondary,
+    borderRadius: 4,
+  },
+  picker: {
+    width: '100%',
+    color: Colors.text,
+  },
+  pickerItem: {
+    fontSize: 16,
   },
   saveButton: {
     backgroundColor: Colors.primary,
