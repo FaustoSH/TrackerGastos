@@ -38,17 +38,14 @@ export const handleNumericChange = (
     setter(cleaned);
 };
 
-export const loadTransactions = async (db: SQLiteDatabase | null, setter: (value: Transaction[]) => void, limitLoad: number): Promise<void> => {
+export const loadTransactions = async (db: SQLiteDatabase | null, setter: (value: Transaction[]) => void, limitLoad?: number, hucha_id?: number): Promise<void> => {
     try {
         if (db) {
-            const query = limitLoad && limitLoad > 0 ?
-                `SELECT *
-           FROM Movimientos
-           ORDER BY fecha DESC, id DESC
-           LIMIT ${limitLoad};` :
-                `SELECT *
-           FROM Movimientos
-           ORDER BY fecha DESC, id DESC;`
+            const query = `SELECT * FROM Movimientos
+            ${hucha_id ? `WHERE hucha_id = ${hucha_id}` : ''}
+            ORDER BY fecha DESC
+            ${limitLoad && limitLoad > 0 ? `LIMIT ${limitLoad}` : ''};`;
+            // Si no se pasa hucha_id, se cargan todas las transacciones
             const results = await asyncExecuteSQL(
                 db, query
             );
@@ -73,6 +70,7 @@ export const loadHuchas = async (db: SQLiteDatabase | null, setter: (value: Huch
                 db,
                 `SELECT *
            FROM Huchas
+            WHERE huchaVisible = 1
            ORDER BY nombre ASC;`
             );
             if (results) {
@@ -92,3 +90,27 @@ export const loadHuchas = async (db: SQLiteDatabase | null, setter: (value: Huch
         throw error;
     }
 };
+
+export const loadHucha = async (db: SQLiteDatabase | null, setter: (value: Hucha) => void, hucha_id: number): Promise<void> => {
+    try {
+        if (db) {
+            const results = await asyncExecuteSQL(
+                db,
+                `SELECT * FROM Huchas WHERE id = ?;`,
+                [hucha_id]
+            );
+            if (results) {
+                const rows = results.rows;
+                if (rows.length > 0) {
+                    const item = rows.item(0);
+                    setter({
+                        ...item,
+                        fecha_limite: item.fecha_limite ? new Date(item.fecha_limite) : null,
+                    });
+                }
+            }
+        }
+    } catch (error) {
+        throw error;
+    }
+}

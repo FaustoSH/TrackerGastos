@@ -93,8 +93,8 @@ const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({ navigation }) => {
         try {
             await asyncExecuteSQL(
                 db,
-                `INSERT INTO Huchas (nombre, saldo, color, objetivo, fecha_limite)
-                VALUES (?, ?, ?, ?, ?);`,
+                `INSERT INTO Huchas (nombre, saldo, color, objetivo, fecha_limite, huchaVisible)
+                VALUES (?, ?, ?, ?, ?, 1);`,
                 [
                     nombre.trim(),
                     0, // Saldo inicial en 0

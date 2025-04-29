@@ -36,7 +36,8 @@ export const initDatabase = async (): Promise<SQLiteDatabase> => {
             saldo REAL NOT NULL,
             color TEXT NOT NULL,
             objetivo REAL,
-            fecha_limite DATE
+            fecha_limite DATE,
+            huchaVisible INTEGER DEFAULT 1 CHECK (huchaVisible IN (0, 1))
           );
         `);
 
@@ -54,14 +55,38 @@ export const initDatabase = async (): Promise<SQLiteDatabase> => {
         `);
 
         tx.executeSql(`
-          CREATE TRIGGER IF NOT EXISTS check_hucha_balance_before_insert
+          CREATE TRIGGER check_balance_before_insert
           BEFORE INSERT ON Movimientos
-          WHEN NEW.tipo = 'gasto' AND NEW.hucha_id IS NOT NULL
+          WHEN NEW.tipo = 'gasto'
           BEGIN
-            SELECT CASE
-              WHEN ((SELECT saldo FROM Huchas WHERE id = NEW.hucha_id) - NEW.cantidad) < 0
-              THEN RAISE(ABORT, 'No hay suficiente dinero en la hucha')
-            END;
+            SELECT
+              CASE
+                -- Caso A: gasto dentro de una hucha concreta
+                WHEN NEW.hucha_id IS NOT NULL
+                AND (
+                  (SELECT IFNULL(saldo, 0) FROM Huchas WHERE id = NEW.hucha_id)
+                  - NEW.cantidad
+                ) < 0
+                THEN RAISE(ABORT, 'No hay suficiente dinero en la hucha')
+
+                -- Caso B: gasto SIN hucha → calcula el saldo libre global
+                WHEN NEW.hucha_id IS NULL
+                AND (
+                  (SELECT IFNULL(
+                      -- saldo global según última transacción
+                      (SELECT saldoPostTransaccion
+                        FROM Movimientos
+                        ORDER BY fecha DESC, id DESC
+                        LIMIT 1),
+                      0
+                    ))
+                  -
+                  (SELECT IFNULL(SUM(saldo), 0) FROM Huchas)
+                  -
+                  NEW.cantidad
+                ) < 0
+                THEN RAISE(ABORT, 'No hay suficiente dinero fuera de huchas')
+              END;
           END;
 
         `);

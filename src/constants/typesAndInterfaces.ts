@@ -6,6 +6,7 @@ export interface Transaction {
     descripcion: string;
     fecha: Date;
     hucha_id: number;
+    saldoHuchaPostTransaccion: number;
 }
 
 export interface Hucha {
@@ -15,4 +16,5 @@ export interface Hucha {
     color: string;
     objetivo: number;
     fecha_limite: Date;
+    huchaVisible: boolean;
 }

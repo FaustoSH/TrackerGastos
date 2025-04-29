@@ -6,20 +6,26 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import AddButton from '../components/AddButton';
 import { AppContext } from '../context/ContextProvider';
 import LoadingScreen from '../components/LoadingScreen';
 import { Transaction, Hucha } from '../constants/typesAndInterfaces';
-import { FontStyles, SectionStyles } from '../constants/generalStyles';
+import { FontStyles, SectionStyles, TransactionSectionStyles } from '../constants/generalStyles';
 import { loadHuchas, loadTransactions } from '../utils/Utils';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../App';
 
 const MainScreen: FC = () => {
   const { db } = useContext(AppContext);
   const [loading, setLoading] = useState<boolean>(true)
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [huchas, setHuchas] = useState<Hucha[]>([]);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
 
   useEffect(() => {
     loadData()
@@ -68,20 +74,20 @@ const MainScreen: FC = () => {
     }
 
     return (
-      <View style={styles.transactionItem} key={item.id.toString()}>
-        <View style={styles.transactionCantidadYConcepto}>
-          <Text style={[styles.transactionAmount, { color: amountColor }]}>
+      <View style={TransactionSectionStyles.transactionItem} key={item.id.toString()}>
+        <View style={TransactionSectionStyles.transactionCantidadYConcepto}>
+          <Text style={[TransactionSectionStyles.transactionAmount, { color: amountColor }]}>
             {item.tipo === 'ingreso' ? '+' : '-'}{item.cantidad.toFixed(2)}€
           </Text>
           <Text style={FontStyles.normalTextStyle}>
             {item.descripcion || (item.tipo === 'ingreso' ? 'Ingreso' : 'Gasto')}
           </Text>
         </View>
-        <View style={styles.transactionSaldoYFecha}>
+        <View style={TransactionSectionStyles.transactionSaldoYFecha}>
           <Text style={FontStyles.normalTextStyle}>
             {item.saldoPostTransaccion}€
           </Text>
-          <Text style={styles.transactionDate}>
+          <Text style={TransactionSectionStyles.transactionDate}>
             {fechaString}
           </Text>
         </View>
@@ -96,7 +102,12 @@ const MainScreen: FC = () => {
     const progressWidth = `${(progress * 100).toFixed(0)}%`;
 
     return (
-      <View style={[styles.huchaItem, { borderColor: item.color }]} key={item.id.toString()}>
+      <TouchableOpacity
+        style={[styles.huchaItem, { borderColor: item.color }]}
+        onPress={() => navigation.navigate('HuchaDetails', { huchaId: item.id })}
+        activeOpacity={0.8}
+        key={item.id.toString()}
+      >
         <View style={styles.huchaHeader}>
           <View style={[styles.colorTag, { backgroundColor: item.color }]} />
           <Text style={styles.huchaName}>{item.nombre}</Text>
@@ -109,7 +120,7 @@ const MainScreen: FC = () => {
             <View style={[styles.progressFill, { width: progressWidth as any, backgroundColor: item.color }]} />
           </View>
         )}
-      </View>
+      </TouchableOpacity >
     );
   };
 
@@ -135,7 +146,7 @@ const MainScreen: FC = () => {
               {huchas.map(item => renderHucha(item))}
             </ScrollView>
           ) : (
-            <Text style={styles.noDataText}>No hay huchas</Text>
+            <Text style={FontStyles.noDataText}>No hay huchas</Text>
           )}
         </View>
 
@@ -149,7 +160,7 @@ const MainScreen: FC = () => {
               }
             </>
           ) : (
-            <Text style={styles.noDataText}>No hay movimientos</Text>
+            <Text style={FontStyles.noDataText}>No hay movimientos</Text>
           )}
         </View>
       </ScrollView>
@@ -188,13 +199,6 @@ const styles = StyleSheet.create({
   totalMoney: {
     ...FontStyles.h1Style,
     color: Colors.primary,
-  },
-
-  //Estilo general para textos no data
-  noDataText: {
-    textAlign: 'center',
-    color: Colors.text,
-    marginTop: 10,
   },
 
   //Estilos sección huchas
@@ -239,36 +243,6 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 3,
-  },
-
-  //Estilos sección movimientos
-  transactionSection: {
-    ...SectionStyles.cardSection,
-    flex: 1,
-  },
-  transactionItem: {
-    paddingVertical: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  transactionCantidadYConcepto: {
-    flexDirection: 'row',
-    maxWidth: '40%',
-    gap: 10,
-  },
-  transactionSaldoYFecha: {
-    flexDirection: 'column',
-    maxWidth: '40%',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-end',
-  },
-  transactionAmount: {
-    ...FontStyles.normalTextStyle,
-    marginVertical: 2,
-  },
-  transactionDate: {
-    ...FontStyles.normalTextStyle,
-    color: Colors.secondary,
   },
 });
 
