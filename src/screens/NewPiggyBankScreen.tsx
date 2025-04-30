@@ -10,6 +10,7 @@ import {
     Alert,
     Platform,
     Modal,
+    BackHandler,
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Colors } from '../constants/colors';
@@ -18,23 +19,31 @@ import { AppContext } from '../context/ContextProvider';
 import { asyncExecuteSQL } from '../database/database';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
-import { handleNumericChange, handleTextChange } from '../utils/Utils';
+import { backToMain, handleNumericChange, handleTextChange } from '../utils/Utils';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 
-interface NewPiggyBankScreenProps {
-    navigation: NativeStackNavigationProp<RootStackParamList, 'NewPiggyBank'>;
-}
-
-const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({ navigation }) => {
+const NewPiggyBankScreen: FC = () => {
     const { db } = useContext(AppContext);
+    const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const [nombre, setNombre] = useState<string>('');
     const [color, setColor] = useState<string>(Colors.primary); // Color por defecto
-    const [showColorPicker, setShowColorPicker] = useState<boolean>(false);
     const [objectiveToggle, setObjectiveToggle] = useState<boolean>(false);
     const [objetivo, setObjetivo] = useState<string>('');
     const [fechaLimite, setFechaLimite] = useState<Date>(new Date());
     const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
 
+    useFocusEffect(
+        React.useCallback(() => {
+            const onBack = () => {
+                backToMain(navigation);
+                return true;
+            };
+
+            const backHandler = BackHandler.addEventListener('hardwareBackPress', onBack);
+            return () => backHandler.remove();
+        }, [navigation])
+    );
 
     /**
      * Maneja la selección de fecha desde el DateTimePicker.
@@ -103,7 +112,7 @@ const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({ navigation }) => {
                     objectiveToggle ? fechaLimiteString : null,
                 ]
             );
-            navigation.navigate('Main')
+            backToMain(navigation);
         } catch (err) {
             console.error('Error al crear hucha:', err);
             Alert.alert('Error', 'No se pudo crear la hucha');
@@ -131,7 +140,7 @@ const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({ navigation }) => {
                     <View style={styles.colorInputContainer}>
                         <TextInput
                             style={styles.colorInput}
-                            value={"#"+color}
+                            value={"#" + color}
                             onChangeText={(text) => handleTextChange(text, setColor, 6)}
                             placeholder={Colors.primary}
                             placeholderTextColor={Colors.secondary}

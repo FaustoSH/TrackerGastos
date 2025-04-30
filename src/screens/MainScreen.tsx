@@ -38,7 +38,7 @@ const MainScreen: FC = () => {
     try {
       if (db) {
         const promises = [
-          loadTransactions(db, setTransactions, 15),
+          loadTransactions(db, setTransactions),
           loadHuchas(db, setHuchas),
         ]
         await Promise.all(promises)

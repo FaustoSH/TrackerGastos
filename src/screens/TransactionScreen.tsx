@@ -7,16 +7,17 @@ import {
   StyleSheet,
   TouchableOpacity,
   Switch,
-  Alert
+  Alert,
+  BackHandler
 } from 'react-native';
 import { Colors } from '../constants/colors';
-import { RouteProp } from '@react-navigation/native';
+import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
 import { asyncExecuteSQL } from '../database/database';
 import { AppContext } from '../context/ContextProvider';
 import { Hucha, Transaction } from '../constants/typesAndInterfaces';
-import { handleNumericChange, handleTextChange, loadHuchas } from '../utils/Utils';
+import { backToMain, handleNumericChange, handleTextChange, loadHuchas } from '../utils/Utils';
 import LoadingScreen from '../components/LoadingScreen';
 import { Picker } from '@react-native-picker/picker';
 
@@ -46,6 +47,18 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
       })
   }, [db]);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBack = () => {
+        backToMain(navigation);
+        return true;
+      };
+
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBack);
+      return () => backHandler.remove();
+    }, [navigation])
+  );
+
   const loadData = async () => {
     try {
       if (db) {
@@ -66,8 +79,8 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
         throw new Error("Base de datos no inicializada")
       }
 
-      if(usePiggyBank && selectedHucha === null){
-        throw new Error ("Debe seleccionar una hucha")
+      if (usePiggyBank && selectedHucha === null) {
+        throw new Error("Debe seleccionar una hucha")
       }
 
       const numericAmount = parseFloat(amount);
@@ -84,13 +97,14 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
       const newTransaction = await asyncExecuteSQL(
         db,
         `INSERT INTO Movimientos (tipo, cantidad, saldoPostTransaccion, descripcion, fecha, hucha_id)
-         VALUES (?, ?, ?, ?, ?, ?);`,
-        [mode, numericAmount, nuevoSaldoPostTransaccion, concepto, new Date(), selectedHucha]
+         VALUES (?, ?, ?, ?, DATETIME('now'), ?);`,
+        [mode, numericAmount, nuevoSaldoPostTransaccion, concepto, selectedHucha]
       );
 
-      navigation.navigate('Main');
+      backToMain(navigation);
     } catch (error: any) {
-      Alert.alert('Error al guardar el movimiento: ', error.message);
+      console.log(error);
+      Alert.alert('Error al guardar el movimiento: ', error.message || 'Error desconocido');
     }
   };
 

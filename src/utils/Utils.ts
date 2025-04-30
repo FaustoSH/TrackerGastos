@@ -1,6 +1,8 @@
 import { SQLiteDatabase } from "react-native-sqlite-storage";
 import { Hucha, Transaction } from "../constants/typesAndInterfaces";
 import { asyncExecuteSQL } from "../database/database";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../../App";
 
 /**
    * Función para manejar cambios en campos de texto.
@@ -43,7 +45,7 @@ export const loadTransactions = async (db: SQLiteDatabase | null, setter: (value
         if (db) {
             const query = `SELECT * FROM Movimientos
             ${hucha_id ? `WHERE hucha_id = ${hucha_id}` : ''}
-            ORDER BY fecha DESC
+            ORDER BY fecha DESC, id DESC
             ${limitLoad && limitLoad > 0 ? `LIMIT ${limitLoad}` : ''};`;
             // Si no se pasa hucha_id, se cargan todas las transacciones
             const results = await asyncExecuteSQL(
@@ -113,4 +115,11 @@ export const loadHucha = async (db: SQLiteDatabase | null, setter: (value: Hucha
     } catch (error) {
         throw error;
     }
+}
+
+export const backToMain = (navigation: NativeStackNavigationProp<RootStackParamList>) => {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Main' }],   
+    });
 }

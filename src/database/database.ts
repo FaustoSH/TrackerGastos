@@ -55,7 +55,7 @@ export const initDatabase = async (): Promise<SQLiteDatabase> => {
         `);
 
         tx.executeSql(`
-          CREATE TRIGGER check_balance_before_insert
+          CREATE TRIGGER IF NOT EXISTS check_balance_before_insert
           BEFORE INSERT ON Movimientos
           WHEN NEW.tipo = 'gasto'
           BEGIN
@@ -105,6 +105,49 @@ export const initDatabase = async (): Promise<SQLiteDatabase> => {
             WHERE id = NEW.hucha_id;
           END;
         `);
+
+        tx.executeSql(`
+          CREATE TRIGGER IF NOT EXISTS handle_hucha_deletion
+          AFTER UPDATE ON Huchas
+          WHEN NEW.huchaVisible = 0        -- se oculta / “elimina”
+            AND OLD.huchaVisible = 1       -- venía de visible
+            AND OLD.saldo > 0              -- solo si tiene dinero
+          BEGIN
+            /* 1. Gasto que vacía la hucha */
+            INSERT INTO Movimientos (tipo, cantidad, saldoPostTransaccion, descripcion, fecha, hucha_id)
+            VALUES (
+              'gasto',
+              OLD.saldo,
+              (SELECT COALESCE((
+                        SELECT saldoPostTransaccion
+                        FROM   Movimientos
+                        ORDER  BY fecha DESC, id DESC
+                        LIMIT  1
+                      ),0) - OLD.saldo),
+              'Sacar dinero de hucha en eliminación',
+              DATETIME('now'),
+              OLD.id
+            );
+
+            /* 2. Ingreso fuera de hucha */
+            INSERT INTO Movimientos (tipo, cantidad, saldoPostTransaccion,
+                                    descripcion, fecha, hucha_id)
+            VALUES (
+              'ingreso',
+              OLD.saldo,
+              (SELECT COALESCE((
+                        SELECT saldoPostTransaccion
+                        FROM   Movimientos
+                        ORDER  BY fecha DESC, id DESC
+                        LIMIT  1
+                      ),0)           -- este SELECT ya ve el saldo tras el gasto
+                + OLD.saldo),
+              'Ingresar dinero de la hucha eliminada',
+              DATETIME('now'),
+              NULL
+            );
+          END;
+        `);
       },
         error => {
           reject(error);
@@ -151,6 +194,7 @@ export const wipeDatabase = async (db: SQLiteDatabase): Promise<void> => {
           // Si tienes triggers, también puedes eliminarlos:
           tx.executeSql(`DROP TRIGGER IF EXISTS check_hucha_balance_before_insert;`);
           tx.executeSql(`DROP TRIGGER IF EXISTS update_hucha_balance_after_insert;`);
+          tx.executeSql(`DROP TRIGGER IF EXISTS handle_hucha_deletion;`);
         },
         (error) => {
           console.error('Error en la transacción wipeDatabase:', error);
