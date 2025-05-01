@@ -96,6 +96,19 @@ const ReportsScreen: FC<ReportsScreenProps> = ({ route, navigation }) => {
 
     const exportToExcel = async () => {
         try {
+            const confirmed = await new Promise((resolve) => {
+                Alert.alert(
+                    "Exportar a Excel",
+                    "¿Desea exportar los datos a Excel?",
+                    [
+                        { text: "Cancelar", onPress: () => resolve(false) },
+                        { text: "Exportar", onPress: () => resolve(true) }
+                    ]
+                );
+            });
+
+            if (!confirmed) return;
+
             const ws = XLSX.utils.json_to_sheet(
                 saldoSerie.labels.map((l, i) => ({ Fecha: l, Saldo: saldoSerie.data[i] }))
             );
@@ -120,6 +133,19 @@ const ReportsScreen: FC<ReportsScreenProps> = ({ route, navigation }) => {
 
     const exportToPDF = async () => {
         try {
+            const confirmed = await new Promise((resolve) => {
+                Alert.alert(
+                    "Exportar a PDF",
+                    "¿Desea exportar los datos a PDF?",
+                    [
+                        { text: "Cancelar", onPress: () => resolve(false) },
+                        { text: "Exportar", onPress: () => resolve(true) }
+                    ]
+                );
+            });
+
+            if (!confirmed) return;
+
             const htmlTableRows = saldoSerie.labels
                 .map((l, i) => `<tr><td>${l}</td><td>${saldoSerie.data[i]}</td></tr>`)
                 .join('');
