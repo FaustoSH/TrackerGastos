@@ -13,6 +13,7 @@ import { backToMain, loadHucha, loadTransactions } from '../utils/Utils';
 import { FontStyles, SectionStyles, TransactionSectionStyles } from '../constants/generalStyles';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import FontAwesome6 from '@react-native-vector-icons/fontawesome6';
+import LoadingScreen from '../components/LoadingScreen';
 
 type HuchaDetailsScreenRouteProp = RouteProp<RootStackParamList, 'HuchaDetails'>;
 type HuchaDetailsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'HuchaDetails'>;
@@ -32,6 +33,7 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
     const [hucha, setHucha] = useState<Hucha | null>(null);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [huchaTransactions, setHuchaTransactions] = useState<HuchaTransaction[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
 
     useEffect(() => {
         loadData()
@@ -43,13 +45,13 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
     useEffect(() => {
         transactionsToHuchaTransactions(transactions);
     }
-    , [transactions]);
+        , [transactions]);
 
     useLayoutEffect(() => {
         navigation.setOptions({
             headerRight: () => (
                 <TouchableOpacity onPress={() => deleteHuchaConfirmation()}>
-                    <FontAwesome6 name="trash" iconStyle="solid" style={{color: Colors.secondary}}/>
+                    <FontAwesome6 name="trash" iconStyle="solid" style={{ color: Colors.secondary }} />
                 </TouchableOpacity>
             ),
         });
@@ -68,19 +70,29 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
     );
 
     const loadData = async () => {
-        await loadHucha(db, setHucha, huchaId);
-        await loadTransactions(db, setTransactions, undefined, huchaId);
+        try {
+            if (db) {
+                const promises = [
+                    loadHucha(db, setHucha, huchaId),
+                    loadTransactions(db, setTransactions, undefined, huchaId),
+                ];
+                await Promise.all(promises);
+                setLoading(false);
+            }
+        } catch (error) {
+            throw error;
+        }
     };
 
-    const transactionsToHuchaTransactions = (transactions: Transaction[])=> {
+    const transactionsToHuchaTransactions = (transactions: Transaction[]) => {
         let saldoHuchaPostTransaccion = 0;
         const huchaTransactions = [];
         const transactionsReverse = [...transactions].reverse();
         for (const transaction of transactionsReverse) {
-            if(transaction.tipo === 'ingreso') {
+            if (transaction.tipo === 'ingreso') {
                 saldoHuchaPostTransaccion += transaction.cantidad;
             }
-            else if(transaction.tipo === 'gasto') {
+            else if (transaction.tipo === 'gasto') {
                 saldoHuchaPostTransaccion -= transaction.cantidad;
             }
             huchaTransactions.push({
@@ -176,10 +188,12 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
 
     const moneyColor = hucha.saldo < 0 ? Colors.alert : Colors.primary;
 
-    return (
+    return loading ? (
+        <LoadingScreen fullWindow={true} />
+    ) : (
         <View style={styles.mainContainer}>
             <ScrollView contentContainerStyle={styles.container}>
-                <Text style={styles.title}>{hucha.nombre}</Text>
+                <Text style={FontStyles.h2Style}>{hucha.nombre}</Text>
                 <Text style={styles.subtitle}>Objetivo: {objetivoString}</Text>
 
                 <View style={styles.headerCard}>
@@ -206,9 +220,10 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
 };
 
 const styles = StyleSheet.create({
-    title: { fontSize: 24, fontWeight: 'bold' },
-    subtitle: { fontSize: 14, color: Colors.secondary, marginBottom: 8 },
-    balance: { fontSize: 32, fontWeight: 'bold', marginBottom: 16, color: Colors.primary },
+    subtitle: {
+        ...FontStyles.normalTextStyle,
+        color: Colors.secondary, marginBottom: 8
+    },
     mainContainer: {
         position: 'relative',
         flex: 1,
