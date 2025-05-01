@@ -6,15 +6,12 @@ import {
     StyleSheet,
     TouchableOpacity,
     TouchableWithoutFeedback,
-    Alert,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
-import { wipeDatabase } from '../database/database';
 import { AppContext } from '../context/ContextProvider';
-import RNRestart from 'react-native-restart';
 
 
 
@@ -54,23 +51,9 @@ const AddButton: FC = () => {
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={styles.menuOption}
-                                    onPress={() => navigation.navigate("NewPiggyBank")}
+                                    onPress={() => navigation.navigate("NewPiggyBank", {})}
                                 >
                                     <Text style={styles.menuOptionText}>Nueva hucha</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={styles.menuOption}
-                                    onPress={async () => {
-                                        if(db){
-                                            await wipeDatabase(db);
-                                            RNRestart.Restart();
-                                        }else{
-                                            Alert.alert("La base de datos no está inicializada")
-                                        }
-                                    }}
-                                >
-                                    <Text style={styles.menuOptionText}>Borrar base de datos</Text>
                                 </TouchableOpacity>
                             </View>
                         </TouchableWithoutFeedback>

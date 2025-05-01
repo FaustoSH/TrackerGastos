@@ -1,5 +1,5 @@
 // src/screens/MainScreen.tsx
-import React, { FC, useContext, useEffect, useState } from 'react';
+import React, { FC, useContext, useEffect, useLayoutEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -14,10 +14,12 @@ import { AppContext } from '../context/ContextProvider';
 import LoadingScreen from '../components/LoadingScreen';
 import { Transaction, Hucha } from '../constants/typesAndInterfaces';
 import { FontStyles, SectionStyles, TransactionSectionStyles } from '../constants/generalStyles';
-import { loadHuchas, loadTransactions } from '../utils/Utils';
+import { loadHuchas, loadTransactions, witpeAndRestartDatabase } from '../utils/Utils';
 import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
+import FontAwesome6 from '@react-native-vector-icons/fontawesome6';
+
 
 type MainScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Main'>;
 type MainScreenRouteProp = RouteProp<RootStackParamList, 'Main'>;
@@ -31,7 +33,7 @@ interface HuchaMainScreen extends Hucha {
   huchaNoContada: boolean;
 }
 
-const MainScreen: FC<MainScreenProps> = ({route, navigation}) => {
+const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
   const { db } = useContext(AppContext);
   const [loading, setLoading] = useState<boolean>(true)
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -45,6 +47,17 @@ const MainScreen: FC<MainScreenProps> = ({route, navigation}) => {
       })
   }, [db]);
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={() => wipeAndRestart()}>
+          <FontAwesome6 name="exclamation" iconStyle="solid" style={{ color: Colors.alert }} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
+
+
   const loadData = async () => {
     try {
       if (db) {
@@ -57,6 +70,30 @@ const MainScreen: FC<MainScreenProps> = ({route, navigation}) => {
       }
     } catch (error) {
       throw error;
+    }
+  }
+
+  const wipeAndRestart = () => {
+    try {
+      Alert.alert(
+        "Resetear aplicación",
+        "¿Estás seguro de que quieres reiniciar la aplicación? Se borrarán todos los datos.",
+        [
+          {
+            text: "Cancelar",
+            style: "cancel",
+          },
+          {
+            text: "Aceptar",
+            onPress: () => {
+              witpeAndRestartDatabase(db);
+            }
+          }
+        ],
+        { cancelable: true }
+      );
+    } catch (error) {
+      Alert.alert("Error al reiniciar la aplicación: " + error)
     }
   }
 
@@ -111,7 +148,7 @@ const MainScreen: FC<MainScreenProps> = ({route, navigation}) => {
     // Calcula progreso si hay objetivo
     const progress = item.objetivo ? Math.min(item.saldo / item.objetivo, 1) : 0;
     const progressWidth = `${(progress * 100).toFixed(0)}%`;
-    
+
     //Si la hucha se cuenta, su color es el color de la hucha, si no, es gris
     const huchaColor = !item.huchaNoContada ? item.color : Colors.secondary;
 
@@ -163,7 +200,7 @@ const MainScreen: FC<MainScreenProps> = ({route, navigation}) => {
     }, 0);
     const saldoUltimoMovimiento = transactions.length > 0 ? transactions[0].saldoPostTransaccion : 0;
     return saldoUltimoMovimiento - saldoARestar;
-    
+
   }
 
   const currentMoney = calcularSaldoActual();

@@ -1,8 +1,10 @@
 import { SQLiteDatabase } from "react-native-sqlite-storage";
 import { Hucha, Transaction } from "../constants/typesAndInterfaces";
-import { asyncExecuteSQL } from "../database/database";
+import { asyncExecuteSQL, wipeDatabase } from "../database/database";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../App";
+import RNRestart from 'react-native-restart';
+
 
 /**
    * Función para manejar cambios en campos de texto.
@@ -122,4 +124,17 @@ export const backToMain = (navigation: NativeStackNavigationProp<RootStackParamL
       index: 0,
       routes: [{ name: 'Main' }],   
     });
+}
+
+export const witpeAndRestartDatabase = async (db: SQLiteDatabase | null): Promise<void> => {
+    try {
+        if(db) {
+            await wipeDatabase(db);
+            RNRestart.Restart();
+        }else{
+            throw new Error("Base de datos no inicializada")
+        }
+    }catch (error) {
+        throw error;
+    }
 }
