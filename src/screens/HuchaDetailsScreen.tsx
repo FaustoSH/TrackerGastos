@@ -22,19 +22,28 @@ interface HuchaDetailsScreenProps {
     navigation: HuchaDetailsScreenNavigationProp;
 }
 
+interface HuchaTransaction extends Transaction {
+    saldoHuchaPostTransaccion: number;
+}
+
 const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) => {
     const { huchaId } = route.params;
     const { db } = useContext(AppContext);
     const [hucha, setHucha] = useState<Hucha | null>(null);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [huchaTransactions, setHuchaTransactions] = useState<HuchaTransaction[]>([]);
 
     useEffect(() => {
         loadData()
             .catch(error => {
                 Alert.alert("Error cargando datos iniciales: " + error);
             });
-
     }, [db]);
+
+    useEffect(() => {
+        transactionsToHuchaTransactions(transactions);
+    }
+    , [transactions]);
 
     useLayoutEffect(() => {
         navigation.setOptions({
@@ -62,6 +71,27 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
         await loadHucha(db, setHucha, huchaId);
         await loadTransactions(db, setTransactions, undefined, huchaId);
     };
+
+    const transactionsToHuchaTransactions = (transactions: Transaction[])=> {
+        let saldoHuchaPostTransaccion = 0;
+        const huchaTransactions = [];
+        const transactionsReverse = [...transactions].reverse();
+        for (const transaction of transactionsReverse) {
+            if(transaction.tipo === 'ingreso') {
+                saldoHuchaPostTransaccion += transaction.cantidad;
+            }
+            else if(transaction.tipo === 'gasto') {
+                saldoHuchaPostTransaccion -= transaction.cantidad;
+            }
+            huchaTransactions.push({
+                ...transaction,
+                saldoHuchaPostTransaccion: saldoHuchaPostTransaccion,
+            });
+        }
+        huchaTransactions.reverse();
+
+        setHuchaTransactions(huchaTransactions);
+    }
 
 
     // ——————————————————————————————————————————
@@ -99,7 +129,7 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
         ? `${hucha.objetivo.toFixed(2)} € · ${new Date(hucha.fecha_limite).toLocaleDateString()}`
         : '—';
 
-    const renderTransaction = (item: Transaction) => {
+    const renderTransaction = (item: HuchaTransaction) => {
         const amountColor = item.tipo === 'ingreso' ? Colors.primary : Colors.alert;
 
         const itemDate = new Date(item.fecha);
@@ -134,7 +164,7 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
                 </View>
                 <View style={TransactionSectionStyles.transactionSaldoYFecha}>
                     <Text style={FontStyles.normalTextStyle}>
-                        {item.saldoPostTransaccion}€
+                        {item.saldoHuchaPostTransaccion}€
                     </Text>
                     <Text style={TransactionSectionStyles.transactionDate}>
                         {fechaString}
@@ -160,10 +190,10 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
                 {/* Últimos movimientos */}
                 <View style={SectionStyles.cardSection}>
                     <Text style={SectionStyles.sectionTitle}>Últimos Movimientos</Text>
-                    {transactions.length > 0 ? (
+                    {huchaTransactions.length > 0 ? (
                         <>
                             {
-                                transactions.map(item => renderTransaction(item))
+                                huchaTransactions.map(item => renderTransaction(item))
                             }
                         </>
                     ) : (
