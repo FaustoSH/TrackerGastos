@@ -155,8 +155,8 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
     return (
       <TouchableOpacity
         style={[styles.huchaItem, { borderColor: huchaColor }]}
-        onPress={() => navigation.navigate('HuchaDetails', { huchaId: item.id })}
-        onLongPress={() => descontarHucha(item.id)}
+        onLongPress={() => navigation.navigate('HuchaDetails', { huchaId: item.id })}
+        onPress={() => descontarHucha(item.id)}
         activeOpacity={0.8}
         key={item.id.toString()}
       >
