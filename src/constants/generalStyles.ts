@@ -15,10 +15,11 @@ export const FontStyles = StyleSheet.create({
         fontWeight: 'normal'
     },
     normalTextStyle: {
-        fontSize: 20,
+        fontSize: 15,
         fontWeight: 'normal',
     },
     noDataText: {
+      fontSize: 15,
       textAlign: 'center',
       color: Colors.text,
       marginTop: 10,
@@ -51,7 +52,7 @@ export const TransactionSectionStyles = StyleSheet.create({
       },
       transactionCantidadYConcepto: {
         flexDirection: 'row',
-        maxWidth: '40%',
+        maxWidth: '45%',
         gap: 10,
       },
       transactionSaldoYFecha: {

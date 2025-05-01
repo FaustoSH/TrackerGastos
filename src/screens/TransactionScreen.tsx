@@ -83,7 +83,7 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
         throw new Error("Debe seleccionar una hucha")
       }
 
-      const numericAmount = parseFloat(amount);
+      const numericAmount = Number.parseFloat(Number.parseFloat(amount).toFixed(2));
 
       const saldoActualQuery = await asyncExecuteSQL(
         db,
@@ -92,8 +92,8 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
         ORDER BY fecha DESC, id DESC
         LIMIT 1;`
       );
-      const saldoActual = saldoActualQuery?.rows?.length > 0 ? (saldoActualQuery.rows.item(0) as Transaction).saldoPostTransaccion : 0;
-      const nuevoSaldoPostTransaccion = mode === "gasto" ? saldoActual - numericAmount : saldoActual + numericAmount;
+      let saldoActual = saldoActualQuery?.rows?.length > 0 ? (saldoActualQuery.rows.item(0) as Transaction).saldoPostTransaccion : 0;
+      const nuevoSaldoPostTransaccion = Number.parseFloat((mode === "gasto" ? saldoActual - numericAmount : saldoActual + numericAmount).toFixed(2));
       const newTransaction = await asyncExecuteSQL(
         db,
         `INSERT INTO Movimientos (tipo, cantidad, saldoPostTransaccion, descripcion, fecha, hucha_id)

@@ -65,7 +65,7 @@ export const loadTransactions = async (db: SQLiteDatabase | null, setter: (value
     }
 };
 
-export const loadHuchas = async (db: SQLiteDatabase | null, setter: (value: Hucha[]) => void): Promise<void> => {
+export const loadHuchas = async <T extends Hucha>(db: SQLiteDatabase | null, setter: (value: T[]) => void): Promise<void> => {
     try {
         if (db) {
             const results = await asyncExecuteSQL(
@@ -77,13 +77,13 @@ export const loadHuchas = async (db: SQLiteDatabase | null, setter: (value: Huch
             );
             if (results) {
                 const rows = results.rows;
-                const data: Hucha[] = [];
+                const data: T[] = [];
                 for (let i = 0; i < rows.length; i++) {
                     const item = rows.item(i);
                     data.push({
                         ...item,
                         fecha_limite: item.fecha_limite ? new Date(item.fecha_limite) : null,
-                    });
+                    } as T);
                 }
                 setter(data);
             }

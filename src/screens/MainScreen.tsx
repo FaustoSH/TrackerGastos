@@ -19,11 +19,16 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
 
+
+interface HuchaMainScreen extends Hucha {
+  huchaNoContada: boolean;
+}
+
 const MainScreen: FC = () => {
   const { db } = useContext(AppContext);
   const [loading, setLoading] = useState<boolean>(true)
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [huchas, setHuchas] = useState<Hucha[]>([]);
+  const [huchas, setHuchas] = useState<HuchaMainScreen[]>([]);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
 
@@ -96,20 +101,24 @@ const MainScreen: FC = () => {
   };
 
   // Render de cada hucha
-  const renderHucha = (item: Hucha) => {
+  const renderHucha = (item: HuchaMainScreen) => {
     // Calcula progreso si hay objetivo
     const progress = item.objetivo ? Math.min(item.saldo / item.objetivo, 1) : 0;
     const progressWidth = `${(progress * 100).toFixed(0)}%`;
+    
+    //Si la hucha se cuenta, su color es el color de la hucha, si no, es gris
+    const huchaColor = !item.huchaNoContada ? item.color : Colors.secondary;
 
     return (
       <TouchableOpacity
-        style={[styles.huchaItem, { borderColor: item.color }]}
+        style={[styles.huchaItem, { borderColor: huchaColor }]}
         onPress={() => navigation.navigate('HuchaDetails', { huchaId: item.id })}
+        onLongPress={() => descontarHucha(item.id)}
         activeOpacity={0.8}
         key={item.id.toString()}
       >
         <View style={styles.huchaHeader}>
-          <View style={[styles.colorTag, { backgroundColor: item.color }]} />
+          <View style={[styles.colorTag, { backgroundColor: huchaColor }]} />
           <Text style={styles.huchaName}>{item.nombre}</Text>
         </View>
         <Text style={FontStyles.normalTextStyle}>
@@ -117,14 +126,41 @@ const MainScreen: FC = () => {
         </Text>
         {item.objetivo && (
           <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: progressWidth as any, backgroundColor: item.color }]} />
+            <View style={[styles.progressFill, { width: progressWidth as any, backgroundColor: huchaColor }]} />
           </View>
         )}
       </TouchableOpacity >
     );
   };
 
-  const currentMoney = transactions.length > 0 ? transactions[0].saldoPostTransaccion : 0;
+  const descontarHucha = (huchaId: number) => {
+    //Selecciona la hucha de la lista de huchas, cambia el parámetro contarSaldoEnTotal y actualiza la lista de huchas
+    const hucha = huchas.find(h => h.id === huchaId);
+    if (hucha) {
+      const updatedHuchas = huchas.map(h => {
+        if (h.id === huchaId) {
+          return { ...h, huchaNoContada: !h.huchaNoContada };
+        }
+        return h;
+      });
+      setHuchas(updatedHuchas);
+    }
+  }
+
+  const calcularSaldoActual = () => {
+    // Calcula el saldo total de las huchas que no se cuentan
+    const saldoARestar = huchas.reduce((total, hucha) => {
+      if (hucha.huchaNoContada) {
+        return total + hucha.saldo;
+      }
+      return total;
+    }, 0);
+    const saldoUltimoMovimiento = transactions.length > 0 ? transactions[0].saldoPostTransaccion : 0;
+    return saldoUltimoMovimiento - saldoARestar;
+    
+  }
+
+  const currentMoney = calcularSaldoActual();
   const moneyColor = currentMoney < 0 ? Colors.alert : Colors.primary;
 
   return loading ? (
