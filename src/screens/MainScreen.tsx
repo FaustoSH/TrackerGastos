@@ -15,21 +15,27 @@ import LoadingScreen from '../components/LoadingScreen';
 import { Transaction, Hucha } from '../constants/typesAndInterfaces';
 import { FontStyles, SectionStyles, TransactionSectionStyles } from '../constants/generalStyles';
 import { loadHuchas, loadTransactions } from '../utils/Utils';
-import { useNavigation } from '@react-navigation/native';
+import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
 
+type MainScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Main'>;
+type MainScreenRouteProp = RouteProp<RootStackParamList, 'Main'>;
+
+interface MainScreenProps {
+  route: MainScreenRouteProp;
+  navigation: MainScreenNavigationProp;
+}
 
 interface HuchaMainScreen extends Hucha {
   huchaNoContada: boolean;
 }
 
-const MainScreen: FC = () => {
+const MainScreen: FC<MainScreenProps> = ({route, navigation}) => {
   const { db } = useContext(AppContext);
   const [loading, setLoading] = useState<boolean>(true)
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [huchas, setHuchas] = useState<HuchaMainScreen[]>([]);
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
 
   useEffect(() => {

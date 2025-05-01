@@ -12,7 +12,7 @@ import HuchaDetailsScreen from './src/screens/HuchaDetailsScreen';
 export type RootStackParamList = {
   Main: undefined;
   Transaction: { mode: 'gasto' | 'ingreso' };
-  NewPiggyBank: undefined;
+  NewPiggyBank: {};
   HuchaDetails: { huchaId: number };
 };
 

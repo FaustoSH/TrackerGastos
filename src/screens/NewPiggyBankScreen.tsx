@@ -9,7 +9,6 @@ import {
     Switch,
     Alert,
     Platform,
-    Modal,
     BackHandler,
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -17,15 +16,21 @@ import { Colors } from '../constants/colors';
 import Slider from '@react-native-community/slider';
 import { AppContext } from '../context/ContextProvider';
 import { asyncExecuteSQL } from '../database/database';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
 import { backToMain, handleNumericChange, handleTextChange } from '../utils/Utils';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { RouteProp, useFocusEffect } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
+type NewPiggyBankScreenRouteProp = RouteProp<RootStackParamList, 'NewPiggyBank'>;
+type NewPiggyBankScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'NewPiggyBank'>;
 
-const NewPiggyBankScreen: FC = () => {
+interface NewPiggyBankScreenProps {
+    route: NewPiggyBankScreenRouteProp;
+    navigation: NewPiggyBankScreenNavigationProp;
+}
+
+const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({route, navigation }) => {
     const { db } = useContext(AppContext);
-    const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const [nombre, setNombre] = useState<string>('');
     const [color, setColor] = useState<string>(Colors.primary); // Color por defecto
     const [objectiveToggle, setObjectiveToggle] = useState<boolean>(false);

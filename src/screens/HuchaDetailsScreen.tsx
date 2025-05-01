@@ -1,25 +1,30 @@
 // src/screens/HuchaDetailsScreen.tsx
 import React, { FC, useLayoutEffect, useContext, useState, useEffect } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal,
+    View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert,
     BackHandler
 } from 'react-native';
-import { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
 import { Colors } from '../constants/colors';
 import { AppContext } from '../context/ContextProvider';
 import { Hucha, Transaction } from '../constants/typesAndInterfaces';
 import { backToMain, loadHucha, loadTransactions } from '../utils/Utils';
 import { FontStyles, SectionStyles, TransactionSectionStyles } from '../constants/generalStyles';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import FontAwesome6 from '@react-native-vector-icons/fontawesome6';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'HuchaDetails'>;
+type HuchaDetailsScreenRouteProp = RouteProp<RootStackParamList, 'HuchaDetails'>;
+type HuchaDetailsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'HuchaDetails'>;
 
-const HuchaDetailsScreen: FC<Props> = ({ route }) => {
+interface HuchaDetailsScreenProps {
+    route: HuchaDetailsScreenRouteProp;
+    navigation: HuchaDetailsScreenNavigationProp;
+}
+
+const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) => {
     const { huchaId } = route.params;
     const { db } = useContext(AppContext);
-    const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const [hucha, setHucha] = useState<Hucha | null>(null);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
 
