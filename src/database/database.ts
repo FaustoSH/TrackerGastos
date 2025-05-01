@@ -50,6 +50,7 @@ export const initDatabase = async (): Promise<SQLiteDatabase> => {
             descripcion TEXT,
             fecha DATE NOT NULL,
             hucha_id INTEGER,
+            modoTransferencia INTEGER DEFAULT 0 CHECK (modoTransferencia IN (0, 1)),
             FOREIGN KEY (hucha_id) REFERENCES Huchas(id)
           );
         `);
@@ -58,33 +59,59 @@ export const initDatabase = async (): Promise<SQLiteDatabase> => {
           CREATE TRIGGER IF NOT EXISTS check_balance_before_insert
           BEFORE INSERT ON Movimientos
           WHEN NEW.tipo = 'gasto'
+              OR (NEW.tipo = 'ingreso' AND NEW.modoTransferencia = 1)
           BEGIN
             SELECT
               CASE
-                -- Caso A: gasto dentro de una hucha concreta
-                WHEN NEW.hucha_id IS NOT NULL
-                AND (
-                  (SELECT IFNULL(saldo, 0) FROM Huchas WHERE id = NEW.hucha_id)
-                  - NEW.cantidad
-                ) < 0
+                /* ────────── A. Gasto en una hucha concreta ────────── */
+                /* Si el gasto es mayor que el saldo de la hucha, aborta */
+                WHEN NEW.tipo = 'gasto'
+                    AND NEW.hucha_id IS NOT NULL
+                    AND (
+                      (SELECT IFNULL(saldo, 0)
+                        FROM   Huchas
+                        WHERE  id = NEW.hucha_id)
+                      - NEW.cantidad
+                    ) < 0
                 THEN RAISE(ABORT, 'No hay suficiente dinero en la hucha')
 
-                -- Caso B: gasto SIN hucha → calcula el saldo libre global
-                WHEN NEW.hucha_id IS NULL
-                AND (
-                  (SELECT IFNULL(
-                      -- saldo global según última transacción
-                      (SELECT saldoPostTransaccion
-                        FROM Movimientos
-                        ORDER BY fecha DESC, id DESC
-                        LIMIT 1),
-                      0
-                    ))
-                  -
-                  (SELECT IFNULL(SUM(saldo), 0) FROM Huchas)
-                  -
-                  NEW.cantidad
-                ) < 0
+                /* ────────── B. Gasto desde el saldo libre ────────── */
+                /* Si el gasto es mayor que el saldo libre, aborta */
+                WHEN NEW.tipo = 'gasto'
+                    AND NEW.hucha_id IS NULL
+                    AND (
+                      /* saldo libre actual */
+                      (SELECT IFNULL(
+                              (SELECT saldoPostTransaccion
+                                FROM   Movimientos
+                                ORDER  BY fecha DESC, id DESC
+                                LIMIT  1),
+                              0
+                            )
+                      )
+                      - (SELECT IFNULL(SUM(saldo), 0) FROM Huchas)
+                      - NEW.cantidad
+                    ) < 0
+                THEN RAISE(ABORT, 'No hay suficiente dinero fuera de huchas')
+
+                /* ────────── C. Ingreso-transferencia a una hucha ────────── */
+                /* Si el ingreso-transferencia es mayor que el saldo libre, aborta */
+                WHEN NEW.tipo = 'ingreso'
+                    AND NEW.modoTransferencia = 1
+                    AND NEW.hucha_id IS NOT NULL
+                    AND (
+                      /* saldo libre actual */
+                      (SELECT IFNULL(
+                              (SELECT saldoPostTransaccion
+                                FROM   Movimientos
+                                ORDER  BY fecha DESC, id DESC
+                                LIMIT  1),
+                              0
+                            )
+                      )
+                      - (SELECT IFNULL(SUM(saldo), 0) FROM Huchas)
+                      - NEW.cantidad
+                    ) < 0
                 THEN RAISE(ABORT, 'No hay suficiente dinero fuera de huchas')
               END;
           END;

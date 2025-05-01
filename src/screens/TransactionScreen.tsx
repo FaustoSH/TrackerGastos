@@ -38,6 +38,7 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
   const [usePiggyBank, setUsePiggyBank] = useState<boolean>(false);
   const [huchas, setHuchas] = useState<Hucha[]>([]);
   const [selectedHucha, setSelectedHucha] = useState<number | null>(null);
+  const [modoTransferenciaSaldo, setModoTransferenciaSaldo] = useState<boolean>(false);
 
 
   useEffect(() => {
@@ -93,20 +94,60 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
         LIMIT 1;`
       );
       let saldoActual = saldoActualQuery?.rows?.length > 0 ? (saldoActualQuery.rows.item(0) as Transaction).saldoPostTransaccion : 0;
-      const nuevoSaldoPostTransaccion = Number.parseFloat((mode === "gasto" ? saldoActual - numericAmount : saldoActual + numericAmount).toFixed(2));
+
+      // Si el modo es transferencia de saldo, no se modifica el saldo actual, sino que se hace una transferencia desde / hacia el saldo no asignado y la hucha seleccionada
+      let nuevoSaldoPostTransaccion = undefined;
+      if (mode === "gasto" && !modoTransferenciaSaldo) {
+        nuevoSaldoPostTransaccion = Number.parseFloat((saldoActual - numericAmount).toFixed(2));
+      } else if (mode === "ingreso" && !modoTransferenciaSaldo) {
+        nuevoSaldoPostTransaccion = Number.parseFloat((saldoActual + numericAmount).toFixed(2));
+      } else if (modoTransferenciaSaldo) {
+        nuevoSaldoPostTransaccion = saldoActual;
+      }
+
       const newTransaction = await asyncExecuteSQL(
         db,
-        `INSERT INTO Movimientos (tipo, cantidad, saldoPostTransaccion, descripcion, fecha, hucha_id)
-         VALUES (?, ?, ?, ?, DATETIME('now'), ?);`,
-        [mode, numericAmount, nuevoSaldoPostTransaccion, concepto, selectedHucha]
+        `INSERT INTO Movimientos (tipo, cantidad, saldoPostTransaccion, descripcion, fecha, hucha_id, modoTransferencia)
+         VALUES (?, ?, ?, ?, DATETIME('now'), ?, ?);`,
+        [mode, numericAmount, nuevoSaldoPostTransaccion, concepto, selectedHucha, (modoTransferenciaSaldo ? 1 : 0)]
       );
 
       backToMain(navigation);
     } catch (error: any) {
-      console.log(error);
       Alert.alert('Error al guardar el movimiento: ', error.message || 'Error desconocido');
     }
   };
+
+  const modoTransferenciaChange = (value: boolean) => {
+    if (value) {
+      const textoAlerta = mode == 'gasto' ? "¿Estás seguro de que quieres hacer una transferencia desde la hucha seleccionada hacia el saldo no asignado?" : "¿Estás seguro de que quieres hacer una transferencia desde el saldo no asignado hacia la hucha seleccionada?"
+      Alert.alert(
+        "Transferencia de saldo",
+        textoAlerta,
+        [
+          {
+            text: "Cancelar",
+            style: "cancel",
+            onPress: () => setModoTransferenciaSaldo(false)
+          },
+          {
+            text: "Aceptar",
+            onPress: () => {
+              setModoTransferenciaSaldo(value)
+              const hucha = huchas.find(h => h.id === selectedHucha)
+              const huchaNombre = hucha ? hucha.nombre : "";
+              const textoConcepto = mode == 'gasto' ? `Transferencia hucha->saldo ${huchaNombre}` : `Transferencia saldo->hucha ${huchaNombre}`;
+              setConcepto(textoConcepto)
+            }
+          }
+        ],
+        { cancelable: true }
+      );
+    } else {
+      setModoTransferenciaSaldo(value)
+      setConcepto("")
+    }
+  }
 
   return loading ? (
     <LoadingScreen fullWindow={true} />
@@ -131,11 +172,15 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
       <View style={styles.formGroup}>
         <Text style={styles.label}>Concepto</Text>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            modoTransferenciaSaldo && { backgroundColor: '#e0e0e0', color: '#666' }
+          ]}
           value={concepto}
           onChangeText={(text) => handleTextChange(text, setConcepto, 50)}
           placeholder="Concepto (opcional)"
           placeholderTextColor={Colors.secondary}
+          editable={!modoTransferenciaSaldo}
         />
       </View>
 
@@ -162,6 +207,13 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
               ))}
             </Picker>
           </View>
+        </View>
+      )}
+
+      {usePiggyBank && selectedHucha && (
+        <View style={styles.formGroupRow}>
+          <Text style={styles.label}>Activar transferencia de saldo</Text>
+          <Switch value={modoTransferenciaSaldo} onValueChange={modoTransferenciaChange} />
         </View>
       )}
 
