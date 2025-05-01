@@ -251,7 +251,12 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
 
         {/* Últimos movimientos */}
         <View style={SectionStyles.cardSection}>
-          <Text style={SectionStyles.sectionTitle}>Últimos Movimientos</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={SectionStyles.sectionTitle}>Últimos Movimientos</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('ReportsScreen', {})}>
+              <FontAwesome6 name="chart-simple" iconStyle="solid" style={{color: Colors.primary, fontSize: 25}} />
+            </TouchableOpacity>
+          </View>
           {transactions.length > 0 ? (
             <>
               {
