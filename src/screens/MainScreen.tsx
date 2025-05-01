@@ -38,6 +38,7 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
   const [loading, setLoading] = useState<boolean>(true)
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [huchas, setHuchas] = useState<HuchaMainScreen[]>([]);
+  const [todasNoContadas, setTodasNoContadas] = useState<boolean>(false);
 
 
   useEffect(() => {
@@ -46,6 +47,12 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
         Alert.alert("Error cargando datos iniciales: " + error)
       })
   }, [db]);
+
+  useEffect(() => {
+    // Comprueba si todas las huchas tienen su parámetro huchaNoContada a true, si es así, cambia el estado a true
+    const todasHuchasNoContadas = huchas.every(h => h.huchaNoContada);
+    setTodasNoContadas(todasHuchasNoContadas);
+  }, [huchas]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -190,6 +197,15 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
     }
   }
 
+  const seleccionarTodasLasHuchas = () => {
+    //Primero comprueba si todas las huchas tienen su parámetro huchaNoContada a true, si es así, las selecciona todas y si no, las deselecciona todas
+    const todasHuchasNoContadas = huchas.every(h => h.huchaNoContada);
+    const updatedHuchas = huchas.map(h => {
+      return { ...h, huchaNoContada: !todasHuchasNoContadas };
+    });
+    setHuchas(updatedHuchas);
+  }
+
   const calcularSaldoActual = () => {
     // Calcula el saldo total de las huchas que no se cuentan
     const saldoARestar = huchas.reduce((total, hucha) => {
@@ -200,7 +216,6 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
     }, 0);
     const saldoUltimoMovimiento = transactions.length > 0 ? transactions[0].saldoPostTransaccion : 0;
     return saldoUltimoMovimiento - saldoARestar;
-
   }
 
   const currentMoney = calcularSaldoActual();
@@ -219,7 +234,12 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
 
         {/* Sección de Huchas */}
         <View style={styles.huchaCard}>
-          <Text style={SectionStyles.sectionTitle}>Huchas</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={SectionStyles.sectionTitle}>Huchas</Text>
+            <TouchableOpacity onPress={() => seleccionarTodasLasHuchas()}>
+              <FontAwesome6 name="square-check" iconStyle="solid" style={{ color: todasNoContadas ? Colors.primary : Colors.secondary, fontSize: 25 }} />
+            </TouchableOpacity>
+          </View>
           {huchas.length > 0 ? (
             <ScrollView horizontal={true} contentContainerStyle={styles.huchaScroll}>
               {huchas.map(item => renderHucha(item))}
