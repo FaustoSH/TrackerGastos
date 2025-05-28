@@ -90,10 +90,10 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
         const transactionsReverse = [...transactions].reverse();
         for (const transaction of transactionsReverse) {
             if (transaction.tipo === 'ingreso') {
-                saldoHuchaPostTransaccion += transaction.cantidad;
+                saldoHuchaPostTransaccion = Number.parseFloat((saldoHuchaPostTransaccion + transaction.cantidad).toFixed(2));
             }
             else if (transaction.tipo === 'gasto') {
-                saldoHuchaPostTransaccion -= transaction.cantidad;
+                saldoHuchaPostTransaccion = Number.parseFloat((saldoHuchaPostTransaccion - transaction.cantidad).toFixed(2));
             }
             huchaTransactions.push({
                 ...transaction,
