@@ -1,13 +1,13 @@
 import SQLite, { SQLiteDatabase } from 'react-native-sqlite-storage';
+import { databaseOperations } from './databaseOperations';
 
 // Habilitar debug (opcional, para ver logs en la consola)
 // SQLite.DEBUG(true);
 // SQLite.enablePromise(true);
 
 const database_name = "TrackerGastos.db";
-const database_version = "1.0";
-const database_displayname = "Tracker Gastos Database";
-const database_size = 200000;
+const CURRENT_DB_VERSION = 2; //El número de la versión actual debe coincidir con el número mayor de la versión de la base de datos en el archivo databaseOperations.ts
+
 
 export const openDatabase = async (): Promise<SQLiteDatabase> => {
   return SQLite.openDatabase(
@@ -29,152 +29,18 @@ export const initDatabase = async (): Promise<SQLiteDatabase> => {
     const db = await openDatabase();
     await new Promise<void>((resolve, reject) => {
       db.transaction(tx => {
-        tx.executeSql(`
-          CREATE TABLE IF NOT EXISTS Huchas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL,
-            saldo REAL NOT NULL,
-            color TEXT NOT NULL,
-            objetivo REAL,
-            fecha_limite DATE,
-            huchaVisible INTEGER DEFAULT 1 CHECK (huchaVisible IN (0, 1))
-          );
-        `);
+        tx.executeSql(databaseOperations.createHuchasTable);
 
-        tx.executeSql(`
-          CREATE TABLE IF NOT EXISTS Movimientos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tipo TEXT NOT NULL CHECK (tipo IN ('ingreso', 'gasto')),
-            cantidad REAL NOT NULL CHECK (cantidad > 0),
-            saldoPostTransaccion REAL NOT NULL,
-            descripcion TEXT,
-            fecha DATE NOT NULL,
-            hucha_id INTEGER,
-            modoTransferencia INTEGER DEFAULT 0 CHECK (modoTransferencia IN (0, 1)),
-            FOREIGN KEY (hucha_id) REFERENCES Huchas(id)
-          );
-        `);
+        tx.executeSql(databaseOperations.createMovimientosTable);
 
-        tx.executeSql(`
-          CREATE TRIGGER IF NOT EXISTS check_balance_before_insert
-          BEFORE INSERT ON Movimientos
-          WHEN NEW.tipo = 'gasto'
-              OR (NEW.tipo = 'ingreso' AND NEW.modoTransferencia = 1)
-          BEGIN
-            SELECT
-              CASE
-                /* ────────── A. Gasto en una hucha concreta ────────── */
-                /* Si el gasto es mayor que el saldo de la hucha, aborta */
-                WHEN NEW.tipo = 'gasto'
-                    AND NEW.hucha_id IS NOT NULL
-                    AND (
-                      (SELECT IFNULL(saldo, 0)
-                        FROM   Huchas
-                        WHERE  id = NEW.hucha_id)
-                      - NEW.cantidad
-                    ) < 0
-                THEN RAISE(ABORT, 'No hay suficiente dinero en la hucha')
+        tx.executeSql(databaseOperations.createDbVersionTable);
 
-                /* ────────── B. Gasto desde el saldo libre ────────── */
-                /* Si el gasto es mayor que el saldo libre, aborta */
-                WHEN NEW.tipo = 'gasto'
-                    AND NEW.hucha_id IS NULL
-                    AND (
-                      /* saldo libre actual */
-                      (SELECT IFNULL(
-                              (SELECT saldoPostTransaccion
-                                FROM   Movimientos
-                                ORDER  BY fecha DESC, id DESC
-                                LIMIT  1),
-                              0
-                            )
-                      )
-                      - (SELECT IFNULL(SUM(saldo), 0) FROM Huchas)
-                      - NEW.cantidad
-                    ) < 0
-                THEN RAISE(ABORT, 'No hay suficiente dinero fuera de huchas')
+        tx.executeSql(databaseOperations.createTriggerCheckBalanceBeforeInsert);
 
-                /* ────────── C. Ingreso-transferencia a una hucha ────────── */
-                /* Si el ingreso-transferencia es mayor que el saldo libre, aborta */
-                WHEN NEW.tipo = 'ingreso'
-                    AND NEW.modoTransferencia = 1
-                    AND NEW.hucha_id IS NOT NULL
-                    AND (
-                      /* saldo libre actual */
-                      (SELECT IFNULL(
-                              (SELECT saldoPostTransaccion
-                                FROM   Movimientos
-                                ORDER  BY fecha DESC, id DESC
-                                LIMIT  1),
-                              0
-                            )
-                      )
-                      - (SELECT IFNULL(SUM(saldo), 0) FROM Huchas)
-                      - NEW.cantidad
-                    ) < 0
-                THEN RAISE(ABORT, 'No hay suficiente dinero fuera de huchas')
-              END;
-          END;
+        tx.executeSql(databaseOperations.createTriggerUpdateHuchaBalanceAfterInsert);
 
-        `);
+        tx.executeSql(databaseOperations.createTriggerHandleHuchaDeletion);
 
-        tx.executeSql(`
-          CREATE TRIGGER IF NOT EXISTS update_hucha_balance_after_insert
-          AFTER INSERT ON Movimientos
-          WHEN NEW.hucha_id IS NOT NULL
-          BEGIN
-            -- Actualiza el saldo de la hucha según el tipo de movimiento
-            UPDATE Huchas
-            SET saldo = CASE NEW.tipo
-                          WHEN 'ingreso' THEN saldo + NEW.cantidad
-                          WHEN 'gasto' THEN saldo - NEW.cantidad
-                        END
-            WHERE id = NEW.hucha_id;
-          END;
-        `);
-
-        tx.executeSql(`
-          CREATE TRIGGER IF NOT EXISTS handle_hucha_deletion
-          AFTER UPDATE ON Huchas
-          WHEN NEW.huchaVisible = 0        -- se oculta / “elimina”
-            AND OLD.huchaVisible = 1       -- venía de visible
-            AND OLD.saldo > 0              -- solo si tiene dinero
-          BEGIN
-            /* 1. Gasto que vacía la hucha */
-            INSERT INTO Movimientos (tipo, cantidad, saldoPostTransaccion, descripcion, fecha, hucha_id)
-            VALUES (
-              'gasto',
-              OLD.saldo,
-              (SELECT COALESCE((
-                        SELECT saldoPostTransaccion
-                        FROM   Movimientos
-                        ORDER  BY fecha DESC, id DESC
-                        LIMIT  1
-                      ),0) - OLD.saldo),
-              'Sacar dinero de hucha en eliminación',
-              DATETIME('now'),
-              OLD.id
-            );
-
-            /* 2. Ingreso fuera de hucha */
-            INSERT INTO Movimientos (tipo, cantidad, saldoPostTransaccion,
-                                    descripcion, fecha, hucha_id)
-            VALUES (
-              'ingreso',
-              OLD.saldo,
-              (SELECT COALESCE((
-                        SELECT saldoPostTransaccion
-                        FROM   Movimientos
-                        ORDER  BY fecha DESC, id DESC
-                        LIMIT  1
-                      ),0)           -- este SELECT ya ve el saldo tras el gasto
-                + OLD.saldo),
-              'Ingresar dinero de la hucha eliminada',
-              DATETIME('now'),
-              NULL
-            );
-          END;
-        `);
       },
         error => {
           reject(error);
@@ -183,6 +49,9 @@ export const initDatabase = async (): Promise<SQLiteDatabase> => {
           resolve();
         });
     });
+
+    // Actualizar triggers después de inicializar la base de datos
+    await checkAndUpdateVersion(db);
 
     return db;
   } catch (error) {
@@ -209,6 +78,46 @@ export const asyncExecuteSQL = async (
   });
 };
 
+const checkAndUpdateVersion = async (db: SQLiteDatabase): Promise<void> => {
+
+  try {
+    const [results] = await asyncExecuteSQL(db, 'SELECT version FROM DbVersion LIMIT 1');
+    const currentVersion = results.rows.length > 0 ? results.rows.item(0).version : 0;
+
+    if (currentVersion < CURRENT_DB_VERSION) {
+      await updateDatabase(db, currentVersion);
+      await db.executeSql('DELETE FROM DbVersion');
+      await db.executeSql('INSERT INTO DbVersion (version) VALUES (?)', [CURRENT_DB_VERSION]);
+    }
+  } catch (error) {
+    throw new Error('Error al comprobar y actualizar la versión de la base de datos: ' + error);
+  }
+};
+
+const updateDatabase = async (db: SQLiteDatabase, updateFrom: number): Promise<void> => {
+  return new Promise<void>((resolve, reject) => {
+    //Añadir aquí las actualizaciones de la base de datos según la versión
+    db.transaction(
+      (tx) => {
+        if (updateFrom < 2) {
+          //Notas versión 2
+          // Actualizar el trigger para manejar la eliminación de huchas
+          // Ahora se maneja la eliminación de huchas con un trigger que transfiere el saldo a la cuenta general
+          // sin necesidad de realizar dos inserciones separadas.
+          tx.executeSql(`DROP TRIGGER IF EXISTS handle_hucha_deletion;`);
+          tx.executeSql(databaseOperations.createTriggerHandleHuchaDeletion);
+        }
+      },
+      (error) => {
+        reject(error);
+      },
+      () => {
+        resolve();
+      }
+    );
+  });
+};
+
 
 export const wipeDatabase = async (db: SQLiteDatabase): Promise<void> => {
   try {
@@ -218,8 +127,9 @@ export const wipeDatabase = async (db: SQLiteDatabase): Promise<void> => {
           // Elimina todas las tablas existentes.
           tx.executeSql(`DROP TABLE IF EXISTS Movimientos;`);
           tx.executeSql(`DROP TABLE IF EXISTS Huchas;`);
+          tx.executeSql(`DROP TABLE IF EXISTS DbVersion;`);
           // Si tienes triggers, también puedes eliminarlos:
-          tx.executeSql(`DROP TRIGGER IF EXISTS check_hucha_balance_before_insert;`);
+          tx.executeSql(`DROP TRIGGER IF EXISTS check_balance_before_insert;`);
           tx.executeSql(`DROP TRIGGER IF EXISTS update_hucha_balance_after_insert;`);
           tx.executeSql(`DROP TRIGGER IF EXISTS handle_hucha_deletion;`);
         },
