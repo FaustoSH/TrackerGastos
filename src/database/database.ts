@@ -49,7 +49,6 @@ export const initDatabase = async (): Promise<SQLiteDatabase> => {
           resolve();
         });
     });
-
     // Actualizar triggers después de inicializar la base de datos
     await checkAndUpdateVersion(db);
 
@@ -79,9 +78,8 @@ export const asyncExecuteSQL = async (
 };
 
 const checkAndUpdateVersion = async (db: SQLiteDatabase): Promise<void> => {
-
   try {
-    const [results] = await asyncExecuteSQL(db, 'SELECT version FROM DbVersion LIMIT 1');
+    const results = await asyncExecuteSQL(db, 'SELECT version FROM DbVersion LIMIT 1');
     const currentVersion = results.rows.length > 0 ? results.rows.item(0).version : 0;
 
     if (currentVersion < CURRENT_DB_VERSION) {

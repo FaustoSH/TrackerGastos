@@ -2,6 +2,7 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { initDatabase } from '../database/database';
 import { SQLiteDatabase } from 'react-native-sqlite-storage';
+import { Alert } from 'react-native';
 
 export interface AppContextProps {
   db: SQLiteDatabase | null;
@@ -27,7 +28,7 @@ const ContextProvider: React.FC<ContextProviderProps> = ({ children }) => {
         console.log('Base de datos abierta en el contexto global');
       })
       .catch(error => {
-        console.error('Error al abrir la base de datos:', error);
+        Alert.alert('Error al abrir la base de datos: '+ error);
       });
   }, []);
 
