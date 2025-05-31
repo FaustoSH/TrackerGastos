@@ -93,14 +93,16 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
           {
             text: "Aceptar",
             onPress: () => {
-              witpeAndRestartDatabase(db);
+              witpeAndRestartDatabase(db).catch(error => {
+                Alert.alert("Error al reiniciar la aplicación: " + error.message);
+              });
             }
           }
         ],
         { cancelable: true }
       );
-    } catch (error) {
-      Alert.alert("Error al reiniciar la aplicación: " + error)
+    } catch (error: any) {
+      Alert.alert("Error al reiniciar la aplicación: " + error.message);
     }
   }
 

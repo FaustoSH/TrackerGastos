@@ -1,5 +1,6 @@
 import SQLite, { SQLiteDatabase } from 'react-native-sqlite-storage';
 import { databaseOperations } from './databaseOperations';
+import { Alert, BackHandler } from 'react-native';
 
 // Habilitar debug (opcional, para ver logs en la consola)
 // SQLite.DEBUG(true);
@@ -83,9 +84,34 @@ const checkAndUpdateVersion = async (db: SQLiteDatabase): Promise<void> => {
     const currentVersion = results.rows.length > 0 ? results.rows.item(0).version : 0;
 
     if (currentVersion < CURRENT_DB_VERSION) {
-      await updateDatabase(db, currentVersion);
-      await db.executeSql('DELETE FROM DbVersion');
-      await db.executeSql('INSERT INTO DbVersion (version) VALUES (?)', [CURRENT_DB_VERSION]);
+      Alert.alert(
+        'Actualización de la base de datos',
+        `La base de datos se actualizará de la versión ${currentVersion} a la versión ${CURRENT_DB_VERSION}.\nSi no actualizas la base de datos no podrás acceder a la aplicación.`,
+        [
+          {
+            text: 'NO actualizar',
+            style: 'cancel',
+            onPress: () => {
+              //Cerrar la aplicación si el usuario no acepta la actualización
+              BackHandler.exitApp();
+            },
+          },
+          {
+            text: 'Aceptar',
+            onPress: async () => {
+              try {
+                await updateDatabase(db, currentVersion);
+                // Actualizar la versión en la tabla DbVersion
+                await asyncExecuteSQL(db, 'UPDATE DbVersion SET version = ?', [CURRENT_DB_VERSION]);
+                console.log(`Base de datos actualizada a la versión ${CURRENT_DB_VERSION}`);
+              } catch (error) {
+                throw new Error('Error al actualizar la base de datos: ' + error);
+              }
+            },
+          },
+        ],
+        { cancelable: false }
+      );
     }
   } catch (error) {
     throw new Error('Error al comprobar y actualizar la versión de la base de datos: ' + error);
