@@ -19,13 +19,12 @@ import { appVersion } from "../../../utils/Utils";
 
 interface MainScreenOptionsProps {
     setMenuVisible?: (visible: boolean) => void;
+    navigation: any; 
 }
 
-export const MainScreenOptions: FC<MainScreenOptionsProps> = ({ setMenuVisible }) => {
+export const MainScreenOptions: FC<MainScreenOptionsProps> = ({ setMenuVisible, navigation }) => {
     const { db, setGeneralLoading } = useContext(AppContext);
 
-
-    // Opción 1: Exportar la base de datos actual como archivo .db
     const handleExport = async () => {
         try {
             setMenuVisible?.(false); // Cerrar el menú si está abierto
@@ -70,7 +69,6 @@ export const MainScreenOptions: FC<MainScreenOptionsProps> = ({ setMenuVisible }
         }
     };
 
-    // Opción 2: Importar una base de datos .db desde el dispositivo y sobreescribir la actual
     const handleImport = async () => {
         try {
             setMenuVisible?.(false); // Cerrar el menú si está abierto
@@ -112,7 +110,6 @@ export const MainScreenOptions: FC<MainScreenOptionsProps> = ({ setMenuVisible }
         }
     };
 
-    // Opción 3: Borrar la base de datos actual y reiniciar la aplicación
     const handleDelete = async (db: SQLiteDatabase | null) => {
         try {
             setMenuVisible?.(false); // Cerrar el menú si está abierto
@@ -146,6 +143,9 @@ export const MainScreenOptions: FC<MainScreenOptionsProps> = ({ setMenuVisible }
 
     return (
         <>
+            <TouchableOpacity style={HamburgerMenuStyles.menuOption} onPress={async () => {setMenuVisible?.(false); navigation.navigate('ReportsScreen') }}>
+                <Text style={HamburgerMenuStyles.menuOptionText}>Página de reportes</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={HamburgerMenuStyles.menuOption} onPress={async () => { await handleExport(); }}>
                 <Text style={HamburgerMenuStyles.menuOptionText}>Exportar base de datos</Text>
             </TouchableOpacity>

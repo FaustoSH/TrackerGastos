@@ -1,11 +1,7 @@
-import React, { FC, useEffect, useState, useContext, useLayoutEffect } from 'react';
-import { View, ScrollView, StyleSheet, Dimensions, TouchableOpacity, Text, Alert, BackHandler } from 'react-native';
+import React, { FC, useEffect, useState, useContext, useMemo } from 'react';
+import { View, ScrollView, StyleSheet, Dimensions, Text, Alert, BackHandler } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
-import * as XLSX from 'xlsx';
-import RNFS from 'react-native-fs';
-import Share from 'react-native-share';
-import RNHTMLtoPDF from 'react-native-html-to-pdf';
-import { FontStyles, SectionStyles } from '../constants/generalStyles';
+import { SectionStyles } from '../constants/generalStyles';
 import { AppContext } from '../context/ContextProvider';
 import { Transaction } from '../constants/typesAndInterfaces';
 import { loadTransactions, backToMain } from '../utils/Utils';
@@ -14,7 +10,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import LoadingScreen from '../components/LoadingScreen';
-import FontAwesome6 from '@react-native-vector-icons/fontawesome6';
 
 type ReportsScreenRouteProp = RouteProp<RootStackParamList, 'ReportsScreen'>;
 type ReportsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ReportsScreen'>;
@@ -22,6 +17,7 @@ interface ReportsScreenProps {
     route: ReportsScreenRouteProp;
     navigation: ReportsScreenNavigationProp;
 }
+
 const screenWidth = Dimensions.get('window').width - 32;
 
 const ReportsScreen: FC<ReportsScreenProps> = ({ route, navigation }) => {
@@ -30,26 +26,12 @@ const ReportsScreen: FC<ReportsScreenProps> = ({ route, navigation }) => {
     const [loading, setLoading] = useState<boolean>(true);
 
     useEffect(() => {
-        loadData()
-            .catch(error => {
-                Alert.alert("Error cargando datos iniciales: " + error)
-            })
-    }, [db]);
-
-    useLayoutEffect(() => {
-        navigation.setOptions({
-          headerRight: () => (
-            <View style={styles.headerButtons}>
-                <TouchableOpacity onPress={() => exportToExcel()}>
-                    <FontAwesome6 name="file-excel" iconStyle="solid" style={{ color: Colors.primary }} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => exportToPDF()}>
-                    <FontAwesome6 name="file-pdf" iconStyle="solid" style={{ color: Colors.primary  }} />
-                </TouchableOpacity>
-            </View>
-          ),
+        loadData().catch(error => {
+            Alert.alert("Error", "Error cargando datos iniciales: " + (error.message || 'Error desconocido'),
+                [{ text: 'Cerrar aplicación', onPress: () => { BackHandler.exitApp(); } }]
+            );
         });
-      }, [navigation]);
+    }, [db]);
 
     useFocusEffect(
         React.useCallback(() => {
@@ -74,131 +56,83 @@ const ReportsScreen: FC<ReportsScreenProps> = ({ route, navigation }) => {
         }
     };
 
-    const saldoSerie = React.useMemo(() => {
-        const ordered = [...transactions].sort((a, b) => +new Date(a.fecha) - +new Date(b.fecha));
+    const saldoSerie = useMemo(() => {
+        if (!transactions.length) return { labels: [], data: [] };
 
-        // Agrupar por fecha (día)
-        const dailyData = ordered.reduce((acc: { [key: string]: number }, curr) => {
-            const date = new Date(curr.fecha).toISOString().split('T')[0];
-            acc[date] = Number(curr.saldoPostTransaccion) || 0;
-            return acc;
-        }, {});
+        // 1. Ordenar transacciones
+        const ordered = [...transactions].sort(
+            (a, b) => +new Date(a.fecha) - +new Date(b.fecha)
+        );
 
-        // Convertir a arrays para el gráfico
-        const dates = Object.keys(dailyData);
-        const values = Object.values(dailyData);
+        // 2. Registrar el saldo final de cada día (última transacción del día sobrescribe anteriores)
+        const saldoPorDia = new Map<string, number>();
+        ordered.forEach(tx => {
+            const key = new Date(tx.fecha).toISOString().split('T')[0];
+            saldoPorDia.set(key, tx.saldoPostTransaccion);
+        });
 
-        return {
-            labels: dates.map(d => new Date(d).toLocaleDateString()),
-            data: values,
-        };
+        // 3. Recorrer desde la primera fecha hasta hoy, rellenando huecos con el saldo anterior
+        const firstDate = new Date(ordered[0].fecha);
+        const today = new Date();
+
+        const labels: string[] = [];
+        const data: number[] = [];
+
+        let cursor = new Date(firstDate);
+        let ultimoSaldo = ordered[0].saldoPostTransaccion;
+
+        while (cursor <= today) {
+            const key = cursor.toISOString().split('T')[0];
+            if (saldoPorDia.has(key)) {
+                ultimoSaldo = saldoPorDia.get(key)!;
+            }
+
+            labels.push(
+                `${cursor.getDate().toString().padStart(2, '0')}/` +
+                `${(cursor.getMonth() + 1).toString().padStart(2, '0')}/` +
+                `${cursor.getFullYear()}`
+            );
+            data.push(ultimoSaldo);
+            cursor.setDate(cursor.getDate() + 1);
+        }
+
+        return { labels, data };
     }, [transactions]);
 
-    const exportToExcel = async () => {
-        try {
-            const confirmed = await new Promise((resolve) => {
-                Alert.alert(
-                    "Exportar a Excel",
-                    "¿Desea exportar los datos a Excel?",
-                    [
-                        { text: "Cancelar", onPress: () => resolve(false) },
-                        { text: "Exportar", onPress: () => resolve(true) }
-                    ]
-                );
-            });
-
-            if (!confirmed) return;
-
-            const ws = XLSX.utils.json_to_sheet(
-                saldoSerie.labels.map((l, i) => ({ Fecha: l, Saldo: saldoSerie.data[i] }))
-            );
-
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Saldo');
-
-            const filePath = `${RNFS.CachesDirectoryPath}/informes.xlsx`;
-            const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
-
-            await RNFS.writeFile(filePath, wbout, 'base64');
-
-            await Share.open({
-                url: `file://${filePath}`,
-                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                filename: 'informes.xlsx'
-            });
-        } catch (e) {
-            Alert.alert('Error al exportar', String(e));
-        }
-    };
-
-    const exportToPDF = async () => {
-        try {
-            const confirmed = await new Promise((resolve) => {
-                Alert.alert(
-                    "Exportar a PDF",
-                    "¿Desea exportar los datos a PDF?",
-                    [
-                        { text: "Cancelar", onPress: () => resolve(false) },
-                        { text: "Exportar", onPress: () => resolve(true) }
-                    ]
-                );
-            });
-
-            if (!confirmed) return;
-
-            const htmlTableRows = saldoSerie.labels
-                .map((l, i) => `<tr><td>${l}</td><td>${saldoSerie.data[i]}</td></tr>`)
-                .join('');
-
-            const html = `
-            <html><body>
-              <h1>Informe de evolución del saldo</h1>
-              <table border="1" cellpadding="4" cellspacing="0">
-                <thead><tr><th>Fecha</th><th>Saldo</th></tr></thead>
-                <tbody>${htmlTableRows}</tbody>
-              </table>
-            </body></html>`;
-
-            const options = {
-                html,
-                fileName: 'informes',
-                directory: 'Documents',
-            };
-
-            const file = await RNHTMLtoPDF.convert(options);
-
-            await Share.open({
-                url: `file://${file.filePath}`,
-                type: 'application/pdf',
-                filename: 'informes.pdf'
-            });
-        } catch (e) {
-            Alert.alert('Error al exportar', String(e));
-        }
-    };
 
     const renderLine = (serie: { labels: string[]; data: number[] }) => {
+        const totalPoints = serie.labels.length;
+        if (!totalPoints) return null;
+
+        const displayLabels = serie.labels.map((label, idx) =>
+            label
+        );
+
+        const chartWidth = Math.max(screenWidth, totalPoints * 60); // 60 px por día
+        const EXTRA_LABEL_SPACE = 90;
+        const chartHeight = 260 + EXTRA_LABEL_SPACE;
+
         const validData = {
-            labels: serie.labels,
-            data: serie.data.map(d => isNaN(d) ? 0 : d)
+            labels: displayLabels,
+            data: serie.data.map(d => (isNaN(d) ? 0 : d)),
         };
-    
+
         return (
-            <View style={styles.chartCard}>
+            <View style={SectionStyles.cardSection}>
                 <Text style={SectionStyles.sectionTitle}>Saldo global</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+                <ScrollView horizontal showsHorizontalScrollIndicator style={styles.chartContainer}>
                     <LineChart
                         data={{
                             labels: validData.labels,
                             datasets: [{ data: validData.data }],
                         }}
-                        width={Math.max(screenWidth, validData.labels.length * 50)} // Asegura un mínimo de 50px por etiqueta
-                        height={220}
+                        width={chartWidth}
+                        height={chartHeight}
                         chartConfig={chartConfig}
                         bezier
-                        style={{ borderRadius: 12, marginVertical: 8 }}
-                        formatYLabel={(value) => chartConfig.formatYLabel(value)}
-                        horizontalLabelRotation={45}
+                        style={{ borderRadius: 12 }}
+                        formatYLabel={chartConfig.formatYLabel}
+                        verticalLabelRotation={45}
                         yAxisInterval={1}
                     />
                 </ScrollView>
@@ -207,10 +141,10 @@ const ReportsScreen: FC<ReportsScreenProps> = ({ route, navigation }) => {
     };
 
     return loading ? (
-        <LoadingScreen fullWindow={true} />
+        <LoadingScreen fullWindow />
     ) : (
-        <View style={styles.container}>
-            <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <View style={SectionStyles.mainContainer}>
+            <ScrollView contentContainerStyle={SectionStyles.container}>
                 {renderLine(saldoSerie)}
             </ScrollView>
         </View>
@@ -220,28 +154,20 @@ const ReportsScreen: FC<ReportsScreenProps> = ({ route, navigation }) => {
 const chartConfig = {
     backgroundGradientFrom: Colors.cardBackground,
     backgroundGradientTo: Colors.cardBackground,
-    decimalPlaces: 2,
+    decimalPlaces: 0,
     color: () => Colors.primary,
     labelColor: () => Colors.text,
     propsForDots: { r: '3' },
     formatYLabel: (value: string) => {
         const num = parseFloat(value);
-        return isNaN(num) ? '0' : num.toFixed(2);
-    }
+        return isNaN(num) ? '0' : num.toFixed(0);
+    },
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: Colors.background },
-    chartCard: { ...SectionStyles.cardSection },
-    header: {
-        paddingTop: 24,
-        paddingHorizontal: 16,
-        paddingBottom: 8,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    headerButtons: { flexDirection: 'row', gap: 12 },
+    chartContainer: {
+        marginTop: 16,
+    }
 });
 
 export default ReportsScreen;

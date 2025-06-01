@@ -47,14 +47,9 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
   useEffect(() => {
     loadData()
       .catch(error => {
-        Alert.alert('Error', "Error cargando datos iniciales: " + (error.message || 'Error desconocido'),
-          [{
-            text: 'Cerrar aplicación',
-            onPress: () => {
-              BackHandler.exitApp();
-            },
-          }]
-        )
+        Alert.alert("Error", "Error cargando datos iniciales: " + (error.message || 'Error desconocido'),
+          [{ text: 'Cerrar aplicación', onPress: () => { BackHandler.exitApp(); } }]
+        );
       })
   }, [db]);
 
@@ -66,7 +61,7 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerLeft: () => <HamburgerMenu children={<MainScreenOptions />} />
+      headerLeft: () => <HamburgerMenu children={<MainScreenOptions navigation={navigation} />} />
     });
   }, [navigation]);
 

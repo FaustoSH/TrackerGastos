@@ -1,21 +1,10 @@
-import { Alert, BackHandler, Platform, Text, TouchableOpacity } from "react-native";
+import { Alert, Text, TouchableOpacity } from "react-native";
 import { HamburgerMenuStyles } from "../../../constants/generalStyles";
-import RNFS from 'react-native-fs';
-import Share from 'react-native-share';
-import RNRestart from 'react-native-restart';
-import {
-    pick,
-    errorCodes,
-    isErrorWithCode,
-    types,
-} from '@react-native-documents/picker';
 import { FC, useContext } from "react";
 import { AppContext } from "../../../context/ContextProvider";
 import FontAwesome6 from '@react-native-vector-icons/fontawesome6';
 import { Colors } from "../../../constants/colors";
-import { wipeDatabase } from "../../../database/database";
-import { SQLiteDatabase } from "react-native-sqlite-storage";
-import { appVersion, backToMain } from "../../../utils/Utils";
+import { backToMain } from "../../../utils/Utils";
 
 interface HuchaScreenOptionsProps {
     setMenuVisible?: (visible: boolean) => void;
