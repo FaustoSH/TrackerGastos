@@ -19,14 +19,25 @@ export const FontStyles = StyleSheet.create({
         fontWeight: 'normal',
     },
     noDataText: {
-      fontSize: 15,
-      textAlign: 'center',
-      color: Colors.text,
-      marginTop: 10,
+        fontSize: 15,
+        textAlign: 'center',
+        color: Colors.text,
+        marginTop: 10,
     },
 })
 
 export const SectionStyles = StyleSheet.create({
+    mainContainer: {
+        position: 'relative',
+        flex: 1,
+        backgroundColor: Colors.background,
+    },
+    container: {
+        flexGrow: 1,
+        backgroundColor: Colors.background,
+        paddingHorizontal: 16,
+        paddingTop: 16,
+    },
     cardSection: {
         backgroundColor: Colors.cardBackground,
         borderRadius: 12,
@@ -40,39 +51,62 @@ export const SectionStyles = StyleSheet.create({
     },
 });
 
+export const MoneyStyles = StyleSheet.create({
+    currencySymbol: {
+        ...FontStyles.h1Style,
+        color: Colors.primary,
+        marginRight: 8,
+    },
+    totalMoney: {
+        ...FontStyles.h1Style,
+        color: Colors.primary,
+    },
+    progressBar: {
+        width: '100%',
+        height: 6,
+        backgroundColor: '#e0e0e0',
+        borderRadius: 3,
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: '100%',
+        borderRadius: 3,
+    },
+});
+
 export const TransactionSectionStyles = StyleSheet.create({
     transactionSection: {
         ...SectionStyles.cardSection,
         flex: 1,
-      },
-      transactionItem: {
+    },
+    transactionItem: {
         paddingVertical: 8,
         flexDirection: 'row',
         justifyContent: 'space-between',
-      },
-      transactionCantidadYConcepto: {
+    },
+    transactionCantidadYConcepto: {
         flexDirection: 'row',
         maxWidth: '45%',
         gap: 10,
-      },
-      transactionSaldoYFecha: {
+    },
+    transactionSaldoYFecha: {
         flexDirection: 'column',
         maxWidth: '40%',
         justifyContent: 'flex-start',
         alignItems: 'flex-end',
-      },
-      transactionAmount: {
+    },
+    transactionAmount: {
         ...FontStyles.normalTextStyle,
         marginVertical: 2,
-      },
-      transactionDate: {
+    },
+    transactionDate: {
         ...FontStyles.normalTextStyle,
         color: Colors.secondary,
-      },
+    },
 });
 
 export const HamburgerMenuStyles = StyleSheet.create({
-  overlay: {
+    overlay: {
         position: 'absolute',
         top: 0, right: 0, bottom: 0, left: 0,
         backgroundColor: 'rgba(0,0,0,0.2)'
@@ -115,4 +149,4 @@ export const HamburgerMenuStyles = StyleSheet.create({
         color: Colors.primary,
         fontSize: 25
     }
-  });
+});

@@ -1,7 +1,7 @@
 // src/screens/HuchaDetailsScreen.tsx
 import React, { FC, useLayoutEffect, useContext, useState, useEffect } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert,
+    View, Text, StyleSheet, ScrollView, Alert,
     BackHandler
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -10,7 +10,7 @@ import { Colors } from '../constants/colors';
 import { AppContext } from '../context/ContextProvider';
 import { Hucha, Transaction } from '../constants/typesAndInterfaces';
 import { backToMain, loadHucha, loadTransactions } from '../utils/Utils';
-import { FontStyles, SectionStyles, TransactionSectionStyles } from '../constants/generalStyles';
+import { FontStyles, MoneyStyles, SectionStyles, TransactionSectionStyles } from '../constants/generalStyles';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import FontAwesome6 from '@react-native-vector-icons/fontawesome6';
 import LoadingScreen from '../components/LoadingScreen';
@@ -110,12 +110,6 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
         }
     }
 
-    if (!hucha) return null;
-
-    const objetivoString = hucha.objetivo
-        ? `${hucha.objetivo.toFixed(2)} € · ${new Date(hucha.fecha_limite).toLocaleDateString()}`
-        : '—';
-
     const renderTransaction = (item: HuchaTransaction) => {
         const amountColor = item.tipo === 'ingreso' ? Colors.primary : Colors.alert;
 
@@ -161,19 +155,44 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
         );
     };
 
+    if (!hucha) return null;
+
+    const huchaColor = hucha.color || Colors.primary;
+    const progress = hucha.objetivo ? Math.min(hucha.saldo / hucha.objetivo, 1) : 0;
+    const progressWidth = `${(progress * 100).toFixed(0)}%`;
+    const fechaLimite = hucha.fecha_limite ? new Date(hucha.fecha_limite) : null;
+    const fechaLimiteString = fechaLimite ? `${fechaLimite.getDate().toString().padStart(2, '0')}/${(fechaLimite.getMonth() + 1).toString().padStart(2, '0')}/${fechaLimite.getFullYear()}` : 'Sin fecha límite';
+    const objetivoText = (`${hucha.saldo.toFixed(2)}€${hucha.objetivo ? ' / ' + hucha.objetivo.toFixed(2) + '€' : ''}`);
+
     const moneyColor = hucha.saldo < 0 ? Colors.alert : Colors.primary;
 
     return loading ? (
         <LoadingScreen fullWindow={true} />
     ) : (
-        <View style={styles.mainContainer}>
-            <ScrollView contentContainerStyle={styles.container}>
-                <Text style={FontStyles.h2Style}>{hucha.nombre}</Text>
-                <Text style={styles.subtitle}>Objetivo: {objetivoString}</Text>
-
-                <View style={styles.headerCard}>
-                    <Text style={[styles.currencySymbol, { color: moneyColor }]}>€</Text>
-                    <Text style={[styles.totalMoney, { color: moneyColor }]}>{hucha.saldo.toFixed(2)}</Text>
+        <View style={SectionStyles.mainContainer}>
+            <ScrollView contentContainerStyle={SectionStyles.container}>
+                <View style={SectionStyles.cardSection}>
+                    <View style={styles.tituloContainer}>
+                        <View style={[styles.colorTag, { backgroundColor: huchaColor }]} />
+                        <Text style={SectionStyles.sectionTitle}>{hucha.nombre}</Text>
+                    </View>
+                    <View style={styles.dinero}>
+                        <Text style={[MoneyStyles.currencySymbol, { color: moneyColor }]}>€</Text>
+                        <Text style={[MoneyStyles.totalMoney, { color: moneyColor }]}>{hucha.saldo.toFixed(2)}</Text>
+                    </View>
+                    {
+                        hucha.objetivo && (
+                            <>
+                                <View style={styles.objetivo}>
+                                    <Text style={styles.objetivo}>Objetivo: {objetivoText}</Text>
+                                    <Text style={styles.objetivo}>Fecha límite: {fechaLimiteString}</Text>
+                                </View>
+                                <View style={MoneyStyles.progressBar}>
+                                    <View style={[MoneyStyles.progressFill, { width: progressWidth as any, backgroundColor: huchaColor }]} />
+                                </View>
+                            </>
+                        )
+                    }
                 </View>
 
                 {/* Últimos movimientos */}
@@ -195,37 +214,27 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
 };
 
 const styles = StyleSheet.create({
-    subtitle: {
-        ...FontStyles.normalTextStyle,
-        color: Colors.secondary, marginBottom: 8
+    tituloContainer: {
+        justifyContent: 'flex-start',
+        alignItems: 'center',
+        flexDirection: 'row',
+        gap: 10,
     },
-    mainContainer: {
-        position: 'relative',
-        flex: 1,
-        backgroundColor: Colors.background,
+    colorTag: {
+        width: 20,
+        height: 20,
+        borderRadius: 4,
     },
-    container: {
-        flexGrow: 1,
-        backgroundColor: Colors.background,
-        paddingHorizontal: 16,
-        paddingTop: 16,
-    },
-    // Tarjeta superior para el dinero total
-    headerCard: {
+    dinero: {
         ...SectionStyles.cardSection,
         padding: 20,
         alignItems: 'center',
         flexDirection: 'row',
         justifyContent: 'center',
     },
-    currencySymbol: {
-        ...FontStyles.h1Style,
-        color: Colors.primary,
-        marginRight: 8,
-    },
-    totalMoney: {
-        ...FontStyles.h1Style,
-        color: Colors.primary,
+    objetivo: {
+        ...FontStyles.normalTextStyle,
+        color: Colors.secondary, marginBottom: 8
     },
 });
 

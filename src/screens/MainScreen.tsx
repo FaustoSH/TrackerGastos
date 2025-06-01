@@ -14,7 +14,7 @@ import AddButton from '../components/AddButton';
 import { AppContext } from '../context/ContextProvider';
 import LoadingScreen from '../components/LoadingScreen';
 import { Transaction, Hucha } from '../constants/typesAndInterfaces';
-import { FontStyles, SectionStyles, TransactionSectionStyles } from '../constants/generalStyles';
+import { FontStyles, MoneyStyles, SectionStyles, TransactionSectionStyles } from '../constants/generalStyles';
 import { loadHuchas, loadTransactions } from '../utils/Utils';
 import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -157,8 +157,8 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
           {item.saldo.toFixed(2)}€{item.objetivo ? ' / ' + item.objetivo.toFixed(2) + '€' : ''}
         </Text>
         {item.objetivo && (
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: progressWidth as any, backgroundColor: huchaColor }]} />
+          <View style={MoneyStyles.progressBar}>
+            <View style={[MoneyStyles.progressFill, { width: progressWidth as any, backgroundColor: huchaColor }]} />
           </View>
         )}
       </TouchableOpacity >
@@ -206,12 +206,12 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
   return loading ? (
     <LoadingScreen fullWindow={true} />
   ) : (
-    <View style={styles.mainContainer}>
-      <ScrollView contentContainerStyle={styles.container}>
+    <View style={SectionStyles.mainContainer}>
+      <ScrollView contentContainerStyle={SectionStyles.container}>
         {/* Sección superior (Dinero total) */}
         <View style={styles.headerCard}>
-          <Text style={[styles.currencySymbol, { color: moneyColor }]}>€</Text>
-          <Text style={[styles.totalMoney, { color: moneyColor }]}>{currentMoney.toFixed(2)}</Text>
+          <Text style={[MoneyStyles.currencySymbol, { color: moneyColor }]}>€</Text>
+          <Text style={[MoneyStyles.totalMoney, { color: moneyColor }]}>{currentMoney.toFixed(2)}</Text>
         </View>
 
         {/* Sección de Huchas */}
@@ -257,18 +257,6 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  // Contenedor principal
-  mainContainer: {
-    position: 'relative',
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  container: {
-    flexGrow: 1,
-    backgroundColor: Colors.background,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
   // Tarjeta superior para el dinero total
   headerCard: {
     ...SectionStyles.cardSection,
@@ -277,16 +265,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
   },
-  currencySymbol: {
-    ...FontStyles.h1Style,
-    color: Colors.primary,
-    marginRight: 8,
-  },
-  totalMoney: {
-    ...FontStyles.h1Style,
-    color: Colors.primary,
-  },
-
   //Estilos sección huchas
   huchaCard: {
     ...SectionStyles.cardSection,
@@ -318,18 +296,7 @@ const styles = StyleSheet.create({
     ...FontStyles.normalTextStyle,
     flexWrap: 'wrap',
     flexShrink: 1
-  },
-  progressBar: {
-    width: '100%',
-    height: 6,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
+  }
 });
 
 export default MainScreen;
