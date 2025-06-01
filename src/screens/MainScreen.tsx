@@ -15,11 +15,13 @@ import { AppContext } from '../context/ContextProvider';
 import LoadingScreen from '../components/LoadingScreen';
 import { Transaction, Hucha } from '../constants/typesAndInterfaces';
 import { FontStyles, SectionStyles, TransactionSectionStyles } from '../constants/generalStyles';
-import { loadHuchas, loadTransactions, witpeAndRestartDatabase } from '../utils/Utils';
+import { loadHuchas, loadTransactions } from '../utils/Utils';
 import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
 import FontAwesome6 from '@react-native-vector-icons/fontawesome6';
+import HamburgerMenu from '../components/HamburguerMenu/HamburguerMenu';
+import { MainScreenOptions } from '../components/HamburguerMenu/HamburguerMenuOptions/MainScreenOptions';
 
 
 type MainScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Main'>;
@@ -45,7 +47,7 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
   useEffect(() => {
     loadData()
       .catch(error => {
-        Alert.alert('Error', "Error cargando datos iniciales: "  + (error.message || 'Error desconocido'),
+        Alert.alert('Error', "Error cargando datos iniciales: " + (error.message || 'Error desconocido'),
           [{
             text: 'Cerrar aplicación',
             onPress: () => {
@@ -64,11 +66,7 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity onPress={() => wipeAndRestart()}>
-          <FontAwesome6 name="exclamation" iconStyle="solid" style={{ color: Colors.alert }} />
-        </TouchableOpacity>
-      ),
+      headerLeft: () => <HamburgerMenu children={<MainScreenOptions />} />
     });
   }, [navigation]);
 
@@ -85,48 +83,6 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
       }
     } catch (error) {
       throw error;
-    }
-  }
-
-  const wipeAndRestart = () => {
-    try {
-      Alert.alert(
-        "Resetear aplicación",
-        "¿Estás seguro de que quieres reiniciar la aplicación? Se borrarán todos los datos.",
-        [
-          {
-            text: "Cancelar",
-            style: "cancel",
-          },
-          {
-            text: "Aceptar",
-            onPress: () => {
-              setLoading(true);
-              witpeAndRestartDatabase(db).catch(error => {
-                setLoading(false);
-                Alert.alert("Error", "Error al reiniciar la aplicación: "  + (error.message || 'Error desconocido'),
-                  [{
-                    text: 'Cerrar aplicación',
-                    onPress: () => {
-                      BackHandler.exitApp();
-                    },
-                  }]
-                );
-              });
-            }
-          }
-        ],
-        { cancelable: true }
-      );
-    } catch (error: any) {
-      Alert.alert("Error", "Error al reiniciar la aplicación: "  + (error.message || 'Error desconocido'),
-        [{
-          text: 'Cerrar aplicación',
-          onPress: () => {
-            BackHandler.exitApp();
-          },
-        }]
-      );
     }
   }
 
