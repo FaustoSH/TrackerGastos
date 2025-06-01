@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
   TouchableOpacity,
+  BackHandler,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import AddButton from '../components/AddButton';
@@ -44,7 +45,14 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
   useEffect(() => {
     loadData()
       .catch(error => {
-        Alert.alert("Error cargando datos iniciales: " + error)
+        Alert.alert('Error', "Error cargando datos iniciales: "  + (error.message || 'Error desconocido'),
+          [{
+            text: 'Cerrar aplicación',
+            onPress: () => {
+              BackHandler.exitApp();
+            },
+          }]
+        )
       })
   }, [db]);
 
@@ -93,8 +101,17 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
           {
             text: "Aceptar",
             onPress: () => {
+              setLoading(true);
               witpeAndRestartDatabase(db).catch(error => {
-                Alert.alert("Error al reiniciar la aplicación: " + error.message);
+                setLoading(false);
+                Alert.alert("Error", "Error al reiniciar la aplicación: "  + (error.message || 'Error desconocido'),
+                  [{
+                    text: 'Cerrar aplicación',
+                    onPress: () => {
+                      BackHandler.exitApp();
+                    },
+                  }]
+                );
               });
             }
           }
@@ -102,7 +119,14 @@ const MainScreen: FC<MainScreenProps> = ({ route, navigation }) => {
         { cancelable: true }
       );
     } catch (error: any) {
-      Alert.alert("Error al reiniciar la aplicación: " + error.message);
+      Alert.alert("Error", "Error al reiniciar la aplicación: "  + (error.message || 'Error desconocido'),
+        [{
+          text: 'Cerrar aplicación',
+          onPress: () => {
+            BackHandler.exitApp();
+          },
+        }]
+      );
     }
   }
 

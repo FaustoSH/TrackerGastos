@@ -38,14 +38,15 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
     useEffect(() => {
         loadData()
             .catch(error => {
-                Alert.alert("Error cargando datos iniciales: " + error);
+                Alert.alert("Error", "Error cargando datos iniciales: " + (error.message || 'Error desconocido'),
+                    [{ text: 'Cerrar aplicación', onPress: () => { BackHandler.exitApp(); } }]
+                );
             });
     }, [db]);
 
     useEffect(() => {
         transactionsToHuchaTransactions(transactions);
-    }
-        , [transactions]);
+    }, [transactions]);
 
     useLayoutEffect(() => {
         navigation.setOptions({
@@ -77,7 +78,6 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
                     loadTransactions(db, setTransactions, undefined, huchaId),
                 ];
                 await Promise.all(promises);
-                setLoading(false);
             }
         } catch (error) {
             throw error;
@@ -85,24 +85,31 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
     };
 
     const transactionsToHuchaTransactions = (transactions: Transaction[]) => {
-        let saldoHuchaPostTransaccion = 0;
-        const huchaTransactions = [];
-        const transactionsReverse = [...transactions].reverse();
-        for (const transaction of transactionsReverse) {
-            if (transaction.tipo === 'ingreso') {
-                saldoHuchaPostTransaccion = Number.parseFloat((saldoHuchaPostTransaccion + transaction.cantidad).toFixed(2));
+        try {
+            let saldoHuchaPostTransaccion = 0;
+            const huchaTransactions = [];
+            const transactionsReverse = [...transactions].reverse();
+            for (const transaction of transactionsReverse) {
+                if (transaction.tipo === 'ingreso') {
+                    saldoHuchaPostTransaccion = Number.parseFloat((saldoHuchaPostTransaccion + transaction.cantidad).toFixed(2));
+                }
+                else if (transaction.tipo === 'gasto') {
+                    saldoHuchaPostTransaccion = Number.parseFloat((saldoHuchaPostTransaccion - transaction.cantidad).toFixed(2));
+                }
+                huchaTransactions.push({
+                    ...transaction,
+                    saldoHuchaPostTransaccion: saldoHuchaPostTransaccion,
+                });
             }
-            else if (transaction.tipo === 'gasto') {
-                saldoHuchaPostTransaccion = Number.parseFloat((saldoHuchaPostTransaccion - transaction.cantidad).toFixed(2));
-            }
-            huchaTransactions.push({
-                ...transaction,
-                saldoHuchaPostTransaccion: saldoHuchaPostTransaccion,
-            });
-        }
-        huchaTransactions.reverse();
+            huchaTransactions.reverse();
 
-        setHuchaTransactions(huchaTransactions);
+            setHuchaTransactions(huchaTransactions);
+            setLoading(false);
+        } catch (error: any) {
+            Alert.alert("Error", "Error procesando transacciones: "  + (error.message || 'Error desconocido'),
+                [{ text: 'Cerrar aplicación', onPress: () => { BackHandler.exitApp(); } }]
+            );
+        }
     }
 
 
@@ -127,12 +134,21 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
         );
     };
     const deleteHucha = async () => {
-        if (!db) return;
-        await db.executeSql(
-            'UPDATE huchas SET huchaVisible = 0 WHERE id = ?',
-            [huchaId]
-        );
-        backToMain(navigation);
+        try {
+            if (!db) return;
+            setLoading(true);
+            await db.executeSql(
+                'UPDATE huchas SET huchaVisible = 0 WHERE id = ?',
+                [huchaId]
+            );
+            Alert.alert("Hucha eliminada", "La hucha ha sido eliminada correctamente.");
+            setLoading(false);
+            backToMain(navigation);
+        } catch (error: any) {
+            setLoading(false);
+            Alert.alert("Error", "Error eliminando la hucha: "  + (error.message || 'Error desconocido'));
+
+        }
     };
 
     if (!hucha) return null;

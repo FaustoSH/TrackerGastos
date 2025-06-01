@@ -44,8 +44,10 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
   useEffect(() => {
     loadData()
       .catch(error => {
-        Alert.alert("Error cargando datos iniciales: " + error)
-      })
+        Alert.alert("Error", "Error cargando datos iniciales: "  + (error.message || 'Error desconocido'),
+          [{ text: 'Cerrar aplicación', onPress: () => { BackHandler.exitApp(); }}]
+        )
+      });
   }, [db]);
 
   useFocusEffect(
@@ -84,6 +86,11 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
         throw new Error("Debe seleccionar una hucha")
       }
 
+      if (amount.trim() === '' || isNaN(Number(amount)) || Number(amount) <= 0) {
+        throw new Error("La cantidad debe ser un número válido mayor que 0");
+      }
+
+      setLoading(true);
       const numericAmount = Number.parseFloat(Number.parseFloat(amount).toFixed(2));
 
       const saldoActualQuery = await asyncExecuteSQL(
@@ -111,10 +118,15 @@ const TransactionScreen: FC<TransactionScreenProps> = ({ route, navigation }) =>
          VALUES (?, ?, ?, ?, DATETIME('now'), ?, ?);`,
         [mode, numericAmount, nuevoSaldoPostTransaccion, concepto, selectedHucha, (modoTransferenciaSaldo ? 1 : 0)]
       );
-
+      Alert.alert(
+        'Movimiento guardado',
+        `Se ha guardado el ${mode === 'gasto' ? 'gasto' : 'ingreso'} correctamente.`
+      );
+      setLoading(false);
       backToMain(navigation);
     } catch (error: any) {
-      Alert.alert('Error al guardar el movimiento: ', error.message || 'Error desconocido');
+      setLoading(false);
+      Alert.alert('Error', 'Error al guardar el movimiento: ' + (error.message || 'Error desconocido'));
     }
   };
 

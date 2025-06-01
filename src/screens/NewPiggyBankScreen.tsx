@@ -20,6 +20,7 @@ import { RootStackParamList } from '../../App';
 import { backToMain, handleNumericChange, handleTextChange } from '../utils/Utils';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import LoadingScreen from '../components/LoadingScreen';
 
 type NewPiggyBankScreenRouteProp = RouteProp<RootStackParamList, 'NewPiggyBank'>;
 type NewPiggyBankScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'NewPiggyBank'>;
@@ -31,6 +32,7 @@ interface NewPiggyBankScreenProps {
 
 const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({route, navigation }) => {
     const { db } = useContext(AppContext);
+    const [loading, setLoading] = useState<boolean>(false);
     const [nombre, setNombre] = useState<string>('');
     const [color, setColor] = useState<string>(Colors.primary); // Color por defecto
     const [objectiveToggle, setObjectiveToggle] = useState<boolean>(false);
@@ -105,6 +107,7 @@ const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({route, navigation }) =
         }
 
         try {
+            setLoading(true);
             await asyncExecuteSQL(
                 db,
                 `INSERT INTO Huchas (nombre, saldo, color, objetivo, fecha_limite, huchaVisible)
@@ -117,14 +120,19 @@ const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({route, navigation }) =
                     objectiveToggle ? fechaLimiteString : null,
                 ]
             );
+            Alert.alert('Éxito', 'Hucha creada correctamente');
+            setLoading(false);
             backToMain(navigation);
-        } catch (err) {
+        } catch (err: any) {
+            setLoading(false);
             console.error('Error al crear hucha:', err);
-            Alert.alert('Error', 'No se pudo crear la hucha');
+            Alert.alert('Error', 'No se pudo crear la hucha: ' + (err.message || 'Error desconocido'));
         }
     };
 
-    return (
+    return loading ? (
+        <LoadingScreen fullWindow={true} />
+    ) : (
         <View style={styles.container}>
             <Text style={styles.title}>Crear Hucha</Text>
 

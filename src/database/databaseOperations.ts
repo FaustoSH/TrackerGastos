@@ -1,6 +1,6 @@
 export const databaseOperations = {
-    //Version 1
-    createHuchasTable: `
+  //Version 1
+  createHuchasTable: `
           CREATE TABLE IF NOT EXISTS Huchas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
@@ -11,8 +11,8 @@ export const databaseOperations = {
             huchaVisible INTEGER DEFAULT 1 CHECK (huchaVisible IN (0, 1))
           );
         `,
-    //Version 1
-    createMovimientosTable: `
+  //Version 1
+  createMovimientosTable: `
           CREATE TABLE IF NOT EXISTS Movimientos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             tipo TEXT NOT NULL CHECK (tipo IN ('ingreso', 'gasto')),
@@ -25,6 +25,12 @@ export const databaseOperations = {
             FOREIGN KEY (hucha_id) REFERENCES Huchas(id)
           );
         `,
+  //Version 1
+  createDbVersionTable: `
+        CREATE TABLE IF NOT EXISTS DbVersion (
+          version INTEGER PRIMARY KEY
+        );
+      `,
     //Version 1
     createTriggerCheckBalanceBeforeInsert: `
           CREATE TRIGGER IF NOT EXISTS check_balance_before_insert
@@ -88,8 +94,8 @@ export const databaseOperations = {
           END;
 
         `,
-    //Version 1
-    createTriggerUpdateHuchaBalanceAfterInsert: `
+  //Version 1
+  createTriggerUpdateHuchaBalanceAfterInsert: `
           CREATE TRIGGER IF NOT EXISTS update_hucha_balance_after_insert
           AFTER INSERT ON Movimientos
           WHEN NEW.hucha_id IS NOT NULL
@@ -103,8 +109,8 @@ export const databaseOperations = {
             WHERE id = NEW.hucha_id;
           END;
         `,
-    //Version 2
-    createTriggerHandleHuchaDeletion: `
+  //Version 2
+  createTriggerHandleHuchaDeletion: `
               CREATE TRIGGER IF NOT EXISTS handle_hucha_deletion
               AFTER UPDATE ON Huchas
               WHEN NEW.huchaVisible = 0        -- se oculta / "elimina"
@@ -136,11 +142,5 @@ export const databaseOperations = {
                   1                           -- indica que es una transferencia
                 );
               END;
-            `,
-    //Version 1
-    createDbVersionTable: `
-        CREATE TABLE IF NOT EXISTS DbVersion (
-          version INTEGER PRIMARY KEY
-        );
-      `
+            `
 };
