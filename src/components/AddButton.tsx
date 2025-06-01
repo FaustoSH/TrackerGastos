@@ -51,7 +51,7 @@ const AddButton: FC = () => {
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={styles.menuOption}
-                                    onPress={() => navigation.navigate("NewPiggyBank", {})}
+                                    onPress={() => navigation.navigate("NewEditPiggyBank", { huchaId: null })} // Navegamos a la pantalla de nueva hucha
                                 >
                                     <Text style={styles.menuOptionText}>Nueva hucha</Text>
                                 </TouchableOpacity>

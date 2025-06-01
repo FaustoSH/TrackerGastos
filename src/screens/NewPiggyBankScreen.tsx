@@ -1,5 +1,5 @@
 // src/screens/NewPiggyBankScreen.tsx
-import React, { FC, useState, useContext } from 'react';
+import React, { FC, useState, useContext, useEffect, use } from 'react';
 import {
     View,
     Text,
@@ -17,22 +17,25 @@ import Slider from '@react-native-community/slider';
 import { AppContext } from '../context/ContextProvider';
 import { asyncExecuteSQL } from '../database/database';
 import { RootStackParamList } from '../../App';
-import { backToMain, handleNumericChange, handleTextChange } from '../utils/Utils';
+import { backToMain, handleNumericChange, handleTextChange, loadHucha } from '../utils/Utils';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LoadingScreen from '../components/LoadingScreen';
+import { Hucha } from '../constants/typesAndInterfaces';
 
-type NewPiggyBankScreenRouteProp = RouteProp<RootStackParamList, 'NewPiggyBank'>;
-type NewPiggyBankScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'NewPiggyBank'>;
+type NewEditPiggyBankScreenRouteProp = RouteProp<RootStackParamList, 'NewEditPiggyBank'>;
+type NewEditPiggyBankScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'NewEditPiggyBank'>;
 
-interface NewPiggyBankScreenProps {
-    route: NewPiggyBankScreenRouteProp;
-    navigation: NewPiggyBankScreenNavigationProp;
+interface NewEditPiggyBankScreenProps {
+    route: NewEditPiggyBankScreenRouteProp;
+    navigation: NewEditPiggyBankScreenNavigationProp;
 }
 
-const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({route, navigation }) => {
+const NewEditPiggyBankScreen: FC<NewEditPiggyBankScreenProps> = ({ route, navigation }) => {
+    const { huchaId } = route.params || {};
     const { db } = useContext(AppContext);
-    const [loading, setLoading] = useState<boolean>(false);
+    const [hucha, setHucha] = useState<Hucha | null>(null);
+    const [loading, setLoading] = useState<boolean>(true);
     const [nombre, setNombre] = useState<string>('');
     const [color, setColor] = useState<string>(Colors.primary); // Color por defecto
     const [objectiveToggle, setObjectiveToggle] = useState<boolean>(false);
@@ -43,7 +46,14 @@ const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({route, navigation }) =
     useFocusEffect(
         React.useCallback(() => {
             const onBack = () => {
-                backToMain(navigation);
+                if (huchaId) {
+                    navigation.reset({
+                        index: 0,
+                        routes: [{ name: 'HuchaDetails', params: { huchaId } }],
+                    });
+                } else {
+                    backToMain(navigation);
+                }
                 return true;
             };
 
@@ -51,6 +61,44 @@ const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({route, navigation }) =
             return () => backHandler.remove();
         }, [navigation])
     );
+
+    useEffect(() => {
+        loadData()
+            .catch(error => {
+                Alert.alert("Error", "Error cargando datos iniciales: " + (error.message || 'Error desconocido'),
+                    [{ text: 'Cerrar aplicación', onPress: () => { BackHandler.exitApp(); } }]
+                );
+            });
+    }, [db, huchaId]);
+
+    useEffect(() => {
+        if (hucha) {
+            setNombre(hucha.nombre);
+            const colorFormated = hucha.color.startsWith('#') ? hucha.color.slice(1) : hucha.color; // Aseguramos que el color no tenga el #
+            setColor(colorFormated);
+            setObjectiveToggle(!!hucha.objetivo);
+            setObjetivo(hucha.objetivo?.toString() || '');
+            setFechaLimite(hucha.fecha_limite ? new Date(hucha.fecha_limite) : new Date());
+            setLoading(false);
+        }
+    }, [hucha]);
+
+    const loadData = async () => {
+        try {
+            if (db && huchaId) {
+                const promises = [
+                    loadHucha(db, setHucha, huchaId),
+                ];
+                await Promise.all(promises);
+            } else if (db) {
+                // Si no hay huchaId, es una nueva hucha
+                setHucha(null);
+                setLoading(false);
+            }
+        } catch (error) {
+            throw error;
+        }
+    };
 
     /**
      * Maneja la selección de fecha desde el DateTimePicker.
@@ -76,6 +124,41 @@ const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({route, navigation }) =
         };
         return `#${f(0)}${f(8)}${f(4)}`;
     };
+
+    const hexToHSL = (hex: string | undefined = ''): { h: number; s: number; l: number } => {
+        if (!hex || !/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(hex)) {
+            return { h: 140, s: 0, l: 0 }; // Retorna un valor por defecto si el hex es inválido
+        }
+        const r = parseInt(hex.slice(1, 3), 16) / 255;
+        const g = parseInt(hex.slice(3, 5), 16) / 255;
+        const b = parseInt(hex.slice(5, 7), 16) / 255;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        let h = 0;
+        const l = (max + min) / 2;
+        const d = max - min;
+        let s = 0;
+        if (d !== 0) {
+            s = l < 0.5 ? d / (max + min) : d / (2 - max - min);
+            switch (max) {
+                case r:
+                    h = (g - b) / d + (g < b ? 6 : 0);
+                    break;
+                case g:
+                    h = (b - r) / d + 2;
+                    break;
+                case b:
+                    h = (r - g) / d + 4;
+                    break;
+            }
+            h /= 6;
+        }
+        return {
+            h: Math.round(h * 360),
+            s: Math.round(s * 100),
+            l: Math.round(l * 100),
+        };
+    }
 
     /**
      * Maneja el guardado de la nueva hucha.
@@ -108,21 +191,43 @@ const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({route, navigation }) =
 
         try {
             setLoading(true);
-            await asyncExecuteSQL(
-                db,
-                `INSERT INTO Huchas (nombre, saldo, color, objetivo, fecha_limite, huchaVisible)
+            if (huchaId) {
+                await asyncExecuteSQL(
+                    db,
+                    `UPDATE Huchas
+                    SET nombre = ?, color = ?, objetivo = ?, fecha_limite = ?
+                    WHERE id = ?;`,
+                    [
+                        nombre.trim(),
+                        "#" + color,
+                        objectiveToggle ? objetivoValue : null,
+                        objectiveToggle ? fechaLimiteString : null,
+                        huchaId,
+                    ]
+                );
+                Alert.alert('Éxito', 'Hucha actualizada correctamente');
+                setLoading(false);
+                navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'HuchaDetails', params: { huchaId } }],
+                });
+            } else {
+                await asyncExecuteSQL(
+                    db,
+                    `INSERT INTO Huchas (nombre, saldo, color, objetivo, fecha_limite, huchaVisible)
                 VALUES (?, ?, ?, ?, ?, 1);`,
-                [
-                    nombre.trim(),
-                    0, // Saldo inicial en 0
-                    "#" + color,
-                    objectiveToggle ? objetivoValue : null,
-                    objectiveToggle ? fechaLimiteString : null,
-                ]
-            );
-            Alert.alert('Éxito', 'Hucha creada correctamente');
-            setLoading(false);
-            backToMain(navigation);
+                    [
+                        nombre.trim(),
+                        0, // Saldo inicial en 0
+                        "#" + color,
+                        objectiveToggle ? objetivoValue : null,
+                        objectiveToggle ? fechaLimiteString : null,
+                    ]
+                );
+                Alert.alert('Éxito', 'Hucha creada correctamente');
+                setLoading(false);
+                backToMain(navigation);
+            }
         } catch (err: any) {
             setLoading(false);
             console.error('Error al crear hucha:', err);
@@ -134,7 +239,7 @@ const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({route, navigation }) =
         <LoadingScreen fullWindow={true} />
     ) : (
         <View style={styles.container}>
-            <Text style={styles.title}>Crear Hucha</Text>
+            <Text style={styles.title}>{hucha ? 'Editar Hucha' : 'Crear Hucha'}</Text>
 
             <View style={styles.formGroup}>
                 <Text style={styles.label}>Nombre de la hucha</Text>
@@ -165,7 +270,7 @@ const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({route, navigation }) =
                             style={styles.slider}
                             minimumValue={0}
                             maximumValue={360}
-                            value={140}
+                            value={huchaId ? hexToHSL(hucha?.color).h : 140}
                             onValueChange={(value) => {
                                 const hexColor = hslToHex(value);
                                 setColor(hexColor.substring(1)); // Removemos el # inicial
@@ -201,7 +306,7 @@ const NewPiggyBankScreen: FC<NewPiggyBankScreenProps> = ({route, navigation }) =
                             onPress={() => setShowDatePicker(true)}
                         >
                             <Text style={styles.dateText}>
-                                {fechaLimite.toLocaleDateString()}
+                                {`${fechaLimite.getDate().toString().padStart(2, '0')}/${(fechaLimite.getMonth() + 1).toString().padStart(2, '0')}/${fechaLimite.getFullYear()}`}
                             </Text>
                         </TouchableOpacity>
                         {showDatePicker && (
@@ -312,4 +417,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default NewPiggyBankScreen;
+export default NewEditPiggyBankScreen;

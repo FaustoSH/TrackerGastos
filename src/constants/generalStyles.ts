@@ -102,6 +102,7 @@ export const HamburgerMenuStyles = StyleSheet.create({
         fontSize: 16
     },
     deleteOption: {
+        paddingTop: 50,
         paddingVertical: 10,
         paddingHorizontal: 10,
         alignSelf: 'flex-end',

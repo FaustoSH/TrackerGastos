@@ -14,6 +14,8 @@ import { FontStyles, SectionStyles, TransactionSectionStyles } from '../constant
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import FontAwesome6 from '@react-native-vector-icons/fontawesome6';
 import LoadingScreen from '../components/LoadingScreen';
+import HamburgerMenu from '../components/HamburguerMenu/HamburguerMenu';
+import { HuchaScreenOptions } from '../components/HamburguerMenu/HamburguerMenuOptions/HuchaScreenOptions';
 
 type HuchaDetailsScreenRouteProp = RouteProp<RootStackParamList, 'HuchaDetails'>;
 type HuchaDetailsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'HuchaDetails'>;
@@ -50,11 +52,7 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
 
     useLayoutEffect(() => {
         navigation.setOptions({
-            headerRight: () => (
-                <TouchableOpacity onPress={() => deleteHuchaConfirmation()}>
-                    <FontAwesome6 name="trash" iconStyle="solid" style={{ color: Colors.secondary }} />
-                </TouchableOpacity>
-            ),
+            headerLeft: () => <HamburgerMenu children={<HuchaScreenOptions setLoading={setLoading} navigation={navigation} huchaId={huchaId} />} />
         });
     }, [navigation]);
 
@@ -106,50 +104,11 @@ const HuchaDetailsScreen: FC<HuchaDetailsScreenProps> = ({ route, navigation }) 
             setHuchaTransactions(huchaTransactions);
             setLoading(false);
         } catch (error: any) {
-            Alert.alert("Error", "Error procesando transacciones: "  + (error.message || 'Error desconocido'),
+            Alert.alert("Error", "Error procesando transacciones: " + (error.message || 'Error desconocido'),
                 [{ text: 'Cerrar aplicación', onPress: () => { BackHandler.exitApp(); } }]
             );
         }
     }
-
-
-    // ——————————————————————————————————————————
-    // Eliminar hucha (huchaVisible → 0)
-    // ——————————————————————————————————————————
-    const deleteHuchaConfirmation = () => {
-        Alert.alert(
-            "Eliminar Hucha",
-            "¿Estás seguro de que quieres eliminar esta hucha?",
-            [
-                {
-                    text: "Cancelar",
-                    style: "cancel"
-                },
-                {
-                    text: "Eliminar",
-                    onPress: () => deleteHucha()
-                }
-            ],
-            { cancelable: true }
-        );
-    };
-    const deleteHucha = async () => {
-        try {
-            if (!db) return;
-            setLoading(true);
-            await db.executeSql(
-                'UPDATE huchas SET huchaVisible = 0 WHERE id = ?',
-                [huchaId]
-            );
-            Alert.alert("Hucha eliminada", "La hucha ha sido eliminada correctamente.");
-            setLoading(false);
-            backToMain(navigation);
-        } catch (error: any) {
-            setLoading(false);
-            Alert.alert("Error", "Error eliminando la hucha: "  + (error.message || 'Error desconocido'));
-
-        }
-    };
 
     if (!hucha) return null;
 

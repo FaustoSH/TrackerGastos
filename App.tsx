@@ -5,7 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import MainScreen from './src/screens/MainScreen';
 import TransactionScreen from './src/screens/TransactionScreen';
 import ContextProvider from './src/context/ContextProvider';
-import NewPiggyBankScreen from './src/screens/NewPiggyBankScreen';
+import NewEditPiggyBankScreen from './src/screens/NewPiggyBankScreen';
 import HuchaDetailsScreen from './src/screens/HuchaDetailsScreen';
 import ReportsScreen from './src/screens/ReportsScreen';
 
@@ -13,7 +13,7 @@ import ReportsScreen from './src/screens/ReportsScreen';
 export type RootStackParamList = {
   Main: undefined;
   Transaction: { mode: 'gasto' | 'ingreso' };
-  NewPiggyBank: {};
+  NewEditPiggyBank: {huchaId: number | null};
   HuchaDetails: { huchaId: number };
   ReportsScreen: {};
 };
@@ -27,7 +27,7 @@ const App = () => {
         <Stack.Navigator initialRouteName="Main">
           <Stack.Screen name="Main" component={MainScreen} options={{ title: 'Inicio' }} />
           <Stack.Screen name="Transaction" component={TransactionScreen} options={{ title: 'Movimiento' }} />
-          <Stack.Screen name="NewPiggyBank" component={NewPiggyBankScreen} options={{ title: 'Nueva hucha' }} />
+          <Stack.Screen name="NewEditPiggyBank" component={NewEditPiggyBankScreen} options={{ title: 'Nueva hucha' }} />
           <Stack.Screen name="HuchaDetails" component={HuchaDetailsScreen} options={{ title: 'Detalle de hucha' }} />
           <Stack.Screen name="ReportsScreen" component={ReportsScreen} options={{ title: 'Reportes' }} />
         </Stack.Navigator>

@@ -154,7 +154,7 @@ export const MainScreenOptions: FC<MainScreenOptionsProps> = ({ setMenuVisible }
             </TouchableOpacity>
             {/* Opción de borrar base de datos, estilo disimulado en esquina inferior izquierda */}
             <TouchableOpacity style={HamburgerMenuStyles.deleteOption} onPress={() => { handleDelete(db); }}>
-                <FontAwesome6 name="exclamation" iconStyle="solid" style={{ color: Colors.alert, fontSize: 20 }} />
+                <FontAwesome6 name="trash" iconStyle="solid" style={{ color: Colors.alert, fontSize: 20 }} />
             </TouchableOpacity>
             <Text style={{...HamburgerMenuStyles.menuOptionText, color: Colors.secondary}}>AppVersion: {appVersion}</Text>
 

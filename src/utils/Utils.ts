@@ -4,7 +4,7 @@ import { asyncExecuteSQL } from "../database/database";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../App";
 
-export const appVersion = '1.3.1'; // Versión de la aplicación, se puede actualizar según sea necesario
+export const appVersion = '1.4.0'; // Versión de la aplicación, se puede actualizar según sea necesario
 
 /**
    * Función para manejar cambios en campos de texto.
