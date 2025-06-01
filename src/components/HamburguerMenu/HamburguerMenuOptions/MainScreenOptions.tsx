@@ -63,8 +63,7 @@ export const MainScreenOptions: FC<MainScreenOptionsProps> = ({ setMenuVisible }
             );
         } catch (error: any) {
             setGeneralLoading(false);
-            if (isErrorWithCode(error) && error.code === errorCodes.OPERATION_CANCELED) {
-                Alert.alert('Operación cancelada', 'La exportación de la base de datos fue cancelada por el usuario.');
+            if (error?.message === 'User did not share') {
                 return;
             }
             Alert.alert('Error', 'Error al exportar la base de datos: ' + (error.message || "Error desconocido"));
@@ -107,7 +106,6 @@ export const MainScreenOptions: FC<MainScreenOptionsProps> = ({ setMenuVisible }
         } catch (error: any) {
             setGeneralLoading(false);
             if (isErrorWithCode(error) && error.code === errorCodes.OPERATION_CANCELED) {
-                Alert.alert('Operación cancelada', 'La importación de la base de datos fue cancelada por el usuario.');
                 return;
             }
             Alert.alert('Error', 'Error al importar la base de datos: ' + (error.message || "Error desconocido"));
